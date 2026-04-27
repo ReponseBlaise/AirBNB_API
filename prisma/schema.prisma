@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  HOST
+  GUEST
+}
+
+enum ListingType {
+  APARTMENT
+  HOUSE
+  VILLA
+  CABIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  name             String
+  email            String    @unique
+  username         String    @unique
+  phone            String
+  role             Role      @default(GUEST)
+  password         String
+  avatar           String?
+  avatarPublicId   String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  listings         Listing[]
+  bookings         Booking[]
+  profile          Profile?
+}
+
+model Profile {
+  id        Int     @id @default(autoincrement())
+  bio       String?
+  website   String?
+  country   String?
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int     @unique
+}
+
+model Listing {
+  id            Int            @id @default(autoincrement())
+  title         String
+  description   String
+  location      String
+  pricePerNight Float
+  guests        Int
+  type          ListingType
+  amenities     String[]
+  rating        Float?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  host          User           @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  hostId        Int
+  bookings      Booking[]
+  photos        ListingPhoto[]
+
+  @@index([location])
+  @@index([pricePerNight])
+}
+
+model ListingPhoto {
+  id        Int     @id @default(autoincrement())
+  url       String
+  publicId  String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId Int
+}
+
+model Booking {
+  id         Int           @id @default(autoincrement())
+  checkIn    DateTime
+  checkOut   DateTime
+  totalPrice Float
+  status     BookingStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  guest      User          @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  guestId    Int
+  listing    Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId  Int
+}
