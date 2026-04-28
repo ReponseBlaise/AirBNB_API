@@ -80,13 +80,15 @@ export async function register(req: AuthRequest, res: Response, next: NextFuncti
       },
     });
 
+    res.status(201).json(stripSensitiveUserFields(user));
+
     try {
       await sendEmail(user.email, 'Welcome to Airbnb!', welcomeEmail(user.name, user.role));
     } catch (emailError) {
       console.error('Welcome email failed:', emailError);
     }
 
-    return res.status(201).json(stripSensitiveUserFields(user));
+    return;
   } catch (error) {
     next(error);
   }

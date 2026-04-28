@@ -4,6 +4,8 @@ import prisma from '../config/prisma.js';
 import { Prisma } from '@prisma/client';
 import { createUserSchema, updateUserSchema } from '../validators/users.validator.js';
 import { stripSensitiveUserFields } from '../utils/userSanitizer.js';
+import { sendEmail } from '../config/email.js';
+import { welcomeEmail } from '../templates/emails.js';
 
 export const getAllUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -59,7 +61,14 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
     const user = await prisma.user.create({
       data: createData,
     });
+
     res.status(201).json(stripSensitiveUserFields(user));
+
+    try {
+      await sendEmail(user.email, 'Welcome to Airbnb!', welcomeEmail(user.name, user.role));
+    } catch (emailError) {
+      console.error('Welcome email failed:', emailError);
+    }
   } catch (error) {
     next(error);
   }
