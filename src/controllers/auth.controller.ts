@@ -41,7 +41,7 @@ const forgotPasswordSchema = z.object({
 });
 
 const resetPasswordSchema = z.object({
-  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 function signToken(userId: number, role: string) {
@@ -211,7 +211,7 @@ export async function changePassword(req: AuthRequest, res: Response, next: Next
       return res.status(401).json({ error: 'Invalid current password' });
     }
 
-    const hashedPassword = await bcrypt.hash(result.data.newPassword, 10);
+    const hashedPassword = await bcrypt.hash(result.data.password, 10);
 
     await userModel.update({
       where: { id: req.userId },
@@ -322,7 +322,7 @@ export async function resetPassword(req: AuthRequest, res: Response, next: NextF
       return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
 
-    const hashedPassword = await bcrypt.hash(result.data.newPassword, 10);
+    const hashedPassword = await bcrypt.hash(result.data.password, 10);
 
     await userModel.update({
       where: { id: user.id },

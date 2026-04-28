@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { setupSwagger } from './config/swagger.js';
 import authRouter from './routes/auth.routes.js';
 import usersRouter from './routes/users.routes.js';
 import listingsRouter from './routes/listings.routes.js';
@@ -10,6 +11,8 @@ import { errorHandler } from './middlewares/errorHandler.js';
 
 const app = express();
 app.use(express.json());
+
+setupSwagger(app);
 
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
