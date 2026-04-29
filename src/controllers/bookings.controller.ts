@@ -75,31 +75,33 @@ export const createBooking = async (req: Request, res: Response, next: NextFunct
     const guestId = authReq.userId;
     const totalPrice = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) * listing.pricePerNight;
 
-    const booking = await prisma.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>) => {
-      const conflictingBooking = await tx.booking.findFirst({
-        where: {
-          listingId: result.data.listingId,
-          status: 'CONFIRMED',
-          checkIn: { lt: checkOutDate },
-          checkOut: { gt: checkInDate },
-        },
-      });
+   // ...existing code...
+const booking = await prisma.$transaction(async (tx) => {
+  const conflictingBooking = await tx.booking.findFirst({
+    where: {
+      listingId: result.data.listingId,
+      status: 'CONFIRMED',
+      checkIn: { lt: checkOutDate },
+      checkOut: { gt: checkInDate },
+    },
+  });
 
-      if (conflictingBooking) {
-        throw new Error('BOOKING_CONFLICT');
-      }
+  if (conflictingBooking) {
+    throw new Error('BOOKING_CONFLICT');
+  }
 
-      return tx.booking.create({
-        data: {
-          guestId,
-          listingId: result.data.listingId,
-          checkIn: checkInDate,
-          checkOut: checkOutDate,
-          totalPrice,
-          status: 'PENDING',
-        },
-      });
-    });
+  return tx.booking.create({
+    data: {
+      listingId: result.data.listingId,
+      guestId,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      totalPrice,
+      status: 'PENDING',
+    },
+  });
+});
+// ...exist
 
     res.status(201).json(booking);
 
