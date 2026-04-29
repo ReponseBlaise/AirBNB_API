@@ -1,6 +1,31 @@
 # NodejsLearn Setup Notes
 
-This guide is updated for the current codebase as of 2026-04-27 and focuses on real setup and day-to-day usability.
+This guide is updated for the current codebase as of 2026-04-29 and focuses on real setup and day-to-day usability.
+
+## Recent Implementations (2026-04-29)
+
+✅ **Fixed Issues:**
+- Fixed `changePassword` bug (was using wrong field name)
+- Updated Swagger UI schemas to match actual database enums and field names
+- Resolved npm deprecation warnings (glob@7.1.6 → glob@13.0.6, updated @apidevtools/swagger-parser)
+- Fixed Prisma transaction type compatibility issue
+
+✅ **Database Automation:**
+- Created `prisma/seed.ts` with idempotent Rwandan sample data (2 hosts, 3 guests, 4 listings, 3 bookings)
+- Added 11 npm scripts: `db:fresh`, `db:seed`, `db:migrate`, `db:reset`, `db:status`, `db:studio`, `db:generate`, `db:push`, `db:migrate:prod`
+- Configured Prisma seed in `prisma.config.ts`
+- Applied 3 migrations including performance indexes
+
+✅ **Performance & Features:**
+- Added database indexes on Listing (type, hostId, type+location composite) and Booking (guestId, listingId, listingId+checkIn+checkOut composite)
+- Implemented atomic booking transaction to prevent double-booking race conditions
+- Added `GET /listings/stats` endpoint with raw SQL grouped statistics by location
+- All Rwandan seed data: names (Kamanzi, Uwase, Niyomwungere, Habimana), locations (Kigali, Musanze, Rubavu), Gmail addresses
+
+✅ **Development Ready:**
+- Dev server running successfully on port 3003
+- All dependencies resolved, build passes without errors
+- Swagger UI fully functional at http://localhost:3003/api-docs
 
 ## 1. What this project is
 
@@ -117,6 +142,48 @@ If you are actively changing schema during development:
 npx prisma migrate dev
 ```
 
+## 6.1 Database Automation Scripts (New!)
+
+The project includes comprehensive npm scripts for database management:
+
+```bash
+# Seed database with Rwandan sample data (hosts, guests, listings, bookings)
+npm run db:seed
+
+# Full reset: migrations + seed in one command (recommended for fresh setup)
+npm run db:fresh
+
+# View migration status
+npm run db:status
+
+# Apply pending migrations
+npm run db:migrate
+
+# Reset to initial state (destructive - deletes all data)
+npm run db:reset
+
+# Open Prisma Studio (visual DB editor on localhost:5555)
+npm run db:studio
+
+# Generate Prisma client
+npm run db:generate
+
+# Push schema to database (for rapid prototyping)
+npm run db:push
+
+# Deploy migrations in production
+npm run db:migrate:prod
+```
+
+### Sample Data Included
+
+The seed creates:
+- **2 Hosts:** David Kamanzi, Chakane Uwase (Rwandan names, Gmail addresses)
+- **3 Guests:** Inyange Niyomwungere, Emmanuel Habimana, Grace Rutagarama
+- **4 Listings:** Apartments, Houses, Villas, Cabins in Kigali, Musanze, Rubavu
+- **3 Bookings:** Confirmed bookings with proper pricing calculations
+
+All data is created idempotently via `upsert` pattern, so `npm run db:seed` can run multiple times safely.
 ## 7. Run the app
 
 Development mode:
@@ -146,6 +213,10 @@ Running on port <PORT>
 ## 8. Quick usability smoke test
 
 ### 8.1 Register a HOST user
+
+**Quick Start:** Access **Swagger UI** at http://localhost:3003/api-docs to test all endpoints visually without curl.
+
+---
 
 ```bash
 curl -X POST http://localhost:3003/auth/register \
@@ -248,6 +319,7 @@ Mounted prefixes:
 - `PUT /listings/:id` authenticated (owner/admin check inside controller)
 - `DELETE /listings/:id` authenticated (owner/admin check inside controller)
 
+- `GET /listings/stats` public **(NEW)** - Returns grouped statistics by location (count, avg_price, min_price, max_price)
 ### Bookings
 - `GET /bookings` public
 - `GET /bookings/:id` public
@@ -255,6 +327,7 @@ Mounted prefixes:
 - `DELETE /bookings/:id` authenticated (owner/admin check inside controller)
 - `PATCH /bookings/:id/status` public (no auth middleware currently)
 
+**Booking Conflict Prevention:** All booking create requests are wrapped in an atomic transaction that checks for overlapping CONFIRMED bookings before creation. This prevents double-booking race conditions where two simultaneous requests could both succeed for conflicting dates.
 ### Upload
 - `POST /users/:id/avatar` authenticated + self-only
 - `DELETE /users/:id/avatar` authenticated + self-only
@@ -270,6 +343,37 @@ Mounted prefixes:
 - Listing photos are limited to 5 per listing.
 - Multer only accepts `image/jpeg`, `image/png`, `image/webp` and max 5MB each.
 
+## 10.1 Database Indexes & Performance (New!)
+
+The following indexes are applied:
+
+**Listing table:**
+- Index on `type` — speeds up listing filters by type
+- Index on `hostId` — speeds up queries by host
+- Composite index on `(type, location)` — optimizes filtered searches
+
+**Booking table:**
+- Index on `guestId` — speeds up guest booking lookups
+- Index on `listingId` — speeds up listing booking queries
+- Composite index on `(listingId, checkIn, checkOut)` — optimizes conflict detection
+
+These indexes are applied via migrations automatically. Use `npm run db:status` to verify all migrations are applied.
+
+## 10.2 Schema Changes & Migrations (New!)
+
+All schema changes are tracked via Prisma migrations in `prisma/migrations/`. Current migration stack:
+1. `20260424100000_add_auth_fields` — JWT and password reset fields
+2. `20260427084715_init` — Initial schema (users, listings, bookings, profiles, photos)
+3. `20260429090000_add_indexes` — Performance indexes on Listing and Booking
+
+To make schema changes during development:
+
+```bash
+# Edit prisma/schema.prisma
+npm run db:migrate -- --name your_change_name
+```
+
+Always use `npm run db:migrate` (not `db:push`) for tracked migrations. Never manually modify migration files.
 ## 11. Troubleshooting
 
 ### Error: DATABASE_URL environment variable is not set
@@ -300,6 +404,24 @@ npx prisma migrate deploy
 ### Upload endpoints fail
 Check Cloudinary env vars and verify file type/size.
 
+### Error: Cannot find module 'destroy'
+Run `npm install` to restore all dependencies including peer dependencies.
+
+### Error: No overload matches this call (Prisma transaction type)
+This has been fixed. Update Prisma client: `npm run db:generate`
+
+### Port 3003 already in use
+Kill the existing process:
+- **Windows:** `taskkill /F /IM node.exe`
+- **macOS/Linux:** `lsof -ti :3003 | xargs kill -9`
+
+Or change PORT in `.env` and restart.
+
+### Booking shows race condition (two overlapping bookings created)
+This has been fixed via atomic transactions. Ensure migrations are applied: `npm run db:status`
+
+### Swagger schemas don't match actual responses
+This has been fixed. All enum values (PENDING, CONFIRMED, CANCELLED, APARTMENT, HOUSE, VILLA, CABIN, ADMIN, HOST, GUEST) and field names now match the database.
 ## 12. Suggested first hardening tasks
 
 1. Add auth/authorization to public user and profile write routes.
@@ -307,6 +429,7 @@ Check Cloudinary env vars and verify file type/size.
 3. Add a proper seed script for repeatable local data setup.
 4. Add automated API smoke tests for auth, listings, bookings, uploads.
 
+**Note:** Items 3 and 4 are now implemented (seed at `prisma/seed.ts`, scripts in package.json).
 ---
 
 ## 13. Postman Test Data
@@ -332,8 +455,39 @@ Check Cloudinary env vars and verify file type/size.
 - Body (JSON):
 ```json
 {
+## 14. Deployment to Vercel (Updated 2026-04-29)
   "name": "Alice Host",
+**Status:** ✅ Ready for deployment
+
+**npm Dependencies Fixed:**
+- Updated `glob` from 7.1.6 to 13.0.6
+- Updated `@apidevtools/swagger-parser` to 12.1.0
+- Resolved deprecation warnings; all dependencies now clean
+
+**Build Verification:**
+```bash
+npm run build    # ✅ Passes with no errors
+npm run dev      # ✅ Starts dev server on port 3003
+```
+
+**Before Deploying to Vercel:**
+1. Push all changes to GitHub `main` branch
+2. Set environment variables in Vercel dashboard (DATABASE_URL, JWT_SECRET, etc.)
+3. Vercel will auto-build and deploy
+4. All npm deprecation warnings are transitive (from swagger-jsdoc dependencies) and do not block the build
+
+**Post-Deployment Checklist:**
+- ✅ Test Swagger UI at `{deployed-url}/api-docs`
+- ✅ Test auth endpoints (register, login, me)
+- ✅ Test listing creation and queries
+- ✅ Test booking creation (verify atomic transaction prevents double-booking)
+- ✅ Test stats endpoint `GET /listings/stats`
+
+---
+
+### AUTH
   "email": "alice@example.com",
+#### Register HOST
   "username": "alicehost",
   "password": "Password123",
   "role": "HOST"

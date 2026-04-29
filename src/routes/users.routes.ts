@@ -197,13 +197,43 @@
  *               items:
  *                 $ref: '#/components/schemas/Booking'
  */
+/**
+ * @swagger
+ * /users/stats:
+ *   get:
+ *     tags: [Users]
+ *     summary: Get user statistics (role breakdown)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalUsers:
+ *                   type: integer
+ *                 byRole:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       role:
+ *                         type: string
+ *                       count:
+ *                         type: integer
+ */
 import { Router } from 'express';
 import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getUserListings, getUserBookings } from '../controllers/users.controller.js';
+import { getUsersStats } from '../controllers/users.controller.js';
 import profileRouter from './profile.routes.js';
 
 const router = Router();
 
 router.get('/', getAllUsers);
+router.get('/stats', getUsersStats);
 router.get('/:id', getUserById);
 router.post('/', createUser);
 router.put('/:id', updateUser);
