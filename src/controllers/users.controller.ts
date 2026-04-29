@@ -6,6 +6,7 @@ import { createUserSchema, updateUserSchema } from '../validators/users.validato
 import { stripSensitiveUserFields } from '../utils/userSanitizer.js';
 import { sendEmail } from '../config/email.js';
 import { welcomeEmail } from '../templates/emails.js';
+import { cache } from '../config/cache.js';
 
 export const getAllUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -64,6 +65,9 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
 
     res.status(201).json(stripSensitiveUserFields(user));
 
+    // Invalidate users stats cache
+    cache.clear('users:stats');
+
     try {
       await sendEmail(user.email, 'Welcome to Airbnb!', welcomeEmail(user.name, user.role));
     } catch (emailError) {
@@ -95,6 +99,12 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
       where: { id: Number(req.params.id) },
       data: updateData,
     });
+    
+    // Invalidate users stats cache if role changed
+    if (result.data.role !== undefined) {
+      cache.clear('users:stats');
+    }
+    
     res.json(stripSensitiveUserFields(user));
   } catch (error) {
     next(error);
@@ -104,6 +114,10 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
 export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     await prisma.user.delete({ where: { id: Number(req.params.id) } });
+    
+    // Invalidate users stats cache
+    cache.clear('users:stats');
+    
     res.json({ message: 'User deleted' });
   } catch (error) {
     next(error);
@@ -131,6 +145,42 @@ export const getUserBookings = async (req: Request, res: Response, next: NextFun
       },
     });
     res.json(bookings);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUsersStats = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const cacheKey = 'users:stats';
+    
+    // Check cache first
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    // Get total users and breakdown by role
+    const [totalUsers, byRole] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.groupBy({
+        by: ['role'],
+        _count: { id: true },
+      }),
+    ]);
+
+    const stats = {
+      totalUsers,
+      byRole: byRole.map((group) => ({
+        role: group.role,
+        count: group._count.id,
+      })),
+    };
+
+    // Cache for 5 minutes
+    cache.set(cacheKey, stats, 300);
+
+    res.json(stats);
   } catch (error) {
     next(error);
   }
