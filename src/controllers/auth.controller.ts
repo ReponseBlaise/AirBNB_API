@@ -211,7 +211,7 @@ export async function changePassword(req: AuthRequest, res: Response, next: Next
       return res.status(401).json({ error: 'Invalid current password' });
     }
 
-    const hashedPassword = await bcrypt.hash(result.data.password, 10);
+    const hashedPassword = await bcrypt.hash(result.data.newPassword, 10);
 
     await userModel.update({
       where: { id: req.userId },

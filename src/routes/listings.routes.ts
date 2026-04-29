@@ -23,7 +23,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [apartment, house, villa, cabin]
+ *           enum: [APARTMENT, HOUSE, VILLA, CABIN]
  *       - in: query
  *         name: minPrice
  *         schema:
@@ -71,7 +71,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [apartment, house, villa, cabin]
+ *           enum: [APARTMENT, HOUSE, VILLA, CABIN]
  *       - in: query
  *         name: minPrice
  *         schema:
@@ -106,16 +106,20 @@
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 totalListings:
- *                   type: integer
- *                 averagePrice:
- *                   type: number
- *                 byLocation:
- *                   type: object
- *                 byType:
- *                   type: object
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   location:
+ *                     type: string
+ *                   total:
+ *                     type: integer
+ *                   avg_price:
+ *                     type: number
+ *                   min_price:
+ *                     type: number
+ *                   max_price:
+ *                     type: number
  */
 /**
  * @swagger
@@ -252,12 +256,13 @@
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 import { Router } from 'express';
-import { getAllListings, getListingById, createListing, updateListing, deleteListing } from '../controllers/listings.controller.js';
+import { getAllListings, getListingById, getListingStats, createListing, updateListing, deleteListing } from '../controllers/listings.controller.js';
 import { authenticate, requireHost } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
 router.get('/', getAllListings);
+router.get('/stats', getListingStats);
 router.get('/:id', getListingById);
 router.post('/', authenticate, createListing);
 router.put('/:id', authenticate, updateListing);

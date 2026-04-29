@@ -172,3 +172,23 @@ export const deleteListing = async (req: Request, res: Response, next: NextFunct
     next(error);
   }
 };
+
+export const getListingStats = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const stats = await prisma.$queryRaw`
+      SELECT
+        location,
+        COUNT(*)::int AS total,
+        ROUND(AVG("pricePerNight")::numeric, 2) AS avg_price,
+        MIN("pricePerNight") AS min_price,
+        MAX("pricePerNight") AS max_price
+      FROM "Listing"
+      GROUP BY location
+      ORDER BY total DESC
+    `;
+
+    res.json(stats);
+  } catch (error) {
+    next(error);
+  }
+};

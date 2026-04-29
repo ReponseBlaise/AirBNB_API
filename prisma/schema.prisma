@@ -72,6 +72,9 @@ model Listing {
 
   @@index([location])
   @@index([pricePerNight])
+  @@index([type])
+  @@index([hostId])
+  @@index([type, location])
 }
 
 model ListingPhoto {
@@ -93,4 +96,8 @@ model Booking {
   guestId    Int
   listing    Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
   listingId  Int
+
+  @@index([guestId])
+  @@index([listingId])
+  @@index([listingId, checkIn, checkOut])
 }

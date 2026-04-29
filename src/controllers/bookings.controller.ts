@@ -72,31 +72,33 @@ export const createBooking = async (req: Request, res: Response, next: NextFunct
       return res.status(404).json({ error: 'Listing not found' });
     }
 
-    const conflictingBooking = await prisma.booking.findFirst({
-      where: {
-        listingId: result.data.listingId,
-        status: BookingStatus.CONFIRMED,
-        checkIn: { lt: checkOutDate },
-        checkOut: { gt: checkInDate },
-      },
-    });
+    const guestId = authReq.userId;
+    const totalPrice = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) * listing.pricePerNight;
 
-    if (conflictingBooking) {
-      return res.status(409).json({ error: 'Booking conflicts with an existing confirmed booking' });
-    }
+    const booking = await prisma.$transaction(async (tx) => {
+      const conflictingBooking = await tx.booking.findFirst({
+        where: {
+          listingId: result.data.listingId,
+          status: BookingStatus.CONFIRMED,
+          checkIn: { lt: checkOutDate },
+          checkOut: { gt: checkInDate },
+        },
+      });
 
-    const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-    const totalPrice = nights * listing.pricePerNight;
+      if (conflictingBooking) {
+        throw new Error('BOOKING_CONFLICT');
+      }
 
-    const booking = await prisma.booking.create({
-      data: {
-        guestId: authReq.userId,
-        listingId: result.data.listingId,
-        checkIn: checkInDate,
-        checkOut: checkOutDate,
-        totalPrice,
-        status: 'PENDING',
-      },
+      return tx.booking.create({
+        data: {
+          guestId,
+          listingId: result.data.listingId,
+          checkIn: checkInDate,
+          checkOut: checkOutDate,
+          totalPrice,
+          status: BookingStatus.PENDING,
+        },
+      });
     });
 
     res.status(201).json(booking);
@@ -115,6 +117,10 @@ export const createBooking = async (req: Request, res: Response, next: NextFunct
       console.error('Booking confirmation email failed:', emailError);
     }
   } catch (error) {
+    if (error instanceof Error && error.message === 'BOOKING_CONFLICT') {
+      return res.status(409).json({ error: 'Booking conflicts with an existing confirmed booking' });
+    }
+
     next(error);
   }
 };

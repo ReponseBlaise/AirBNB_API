@@ -4,7 +4,7 @@
  *   schemas:
  *     User:
  *       type: object
- *       required: [id, name, email, username, phone, role, createdAt]
+ *       required: [id, name, email, username, phone, role, avatar, avatarPublicId, createdAt, updatedAt]
  *       properties:
  *         id:
  *           type: integer
@@ -24,17 +24,21 @@
  *           example: '+1-555-123-4567'
  *         role:
  *           type: string
- *           enum: [host, guest, admin]
- *           example: host
+ *           enum: [ADMIN, HOST, GUEST]
+ *           example: GUEST
  *         avatar:
  *           type: string
  *           nullable: true
  *           example: https://cdn.example.com/avatar.jpg
- *         bio:
+ *         avatarPublicId:
  *           type: string
  *           nullable: true
- *           example: Loves cozy city stays.
+ *           example: airbnb/avatars/jane-host
  *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: '2026-04-28T10:00:00.000Z'
+ *         updatedAt:
  *           type: string
  *           format: date-time
  *           example: '2026-04-28T10:00:00.000Z'
@@ -62,7 +66,7 @@
  *           example: 1
  *     Listing:
  *       type: object
- *       required: [id, title, description, location, pricePerNight, guests, type, amenities, userId, host, createdAt]
+ *       required: [id, title, description, location, pricePerNight, guests, type, amenities, hostId, host, createdAt, updatedAt]
  *       properties:
  *         id:
  *           type: integer
@@ -84,8 +88,8 @@
  *           example: 3
  *         type:
  *           type: string
- *           enum: [apartment, house, villa, cabin]
- *           example: apartment
+ *           enum: [APARTMENT, HOUSE, VILLA, CABIN]
+ *           example: APARTMENT
  *         amenities:
  *           type: array
  *           items:
@@ -95,7 +99,7 @@
  *           type: number
  *           nullable: true
  *           example: 4.8
- *         userId:
+ *         hostId:
  *           type: integer
  *           example: 1
  *         host:
@@ -104,9 +108,13 @@
  *           type: string
  *           format: date-time
  *           example: '2026-04-28T10:00:00.000Z'
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           example: '2026-04-28T10:00:00.000Z'
  *     Booking:
  *       type: object
- *       required: [id, checkIn, checkOut, total, status, userId, listingId, user, listing, createdAt]
+ *       required: [id, checkIn, checkOut, totalPrice, status, guestId, listingId, guest, listing, createdAt]
  *       properties:
  *         id:
  *           type: integer
@@ -119,20 +127,20 @@
  *           type: string
  *           format: date-time
  *           example: '2026-05-05T11:00:00.000Z'
- *         total:
+ *         totalPrice:
  *           type: number
  *           example: 359.96
  *         status:
  *           type: string
- *           enum: [confirmed, cancelled, pending]
- *           example: confirmed
- *         userId:
+ *           enum: [PENDING, CONFIRMED, CANCELLED]
+ *           example: CONFIRMED
+ *         guestId:
  *           type: integer
  *           example: 2
  *         listingId:
  *           type: integer
  *           example: 12
- *         user:
+ *         guest:
  *           $ref: '#/components/schemas/User'
  *         listing:
  *           $ref: '#/components/schemas/Listing'
@@ -189,8 +197,8 @@
  *           example: StrongPass123!
  *         role:
  *           type: string
- *           enum: [host, guest]
- *           example: host
+ *           enum: [HOST, GUEST]
+ *           example: GUEST
  *         avatar:
  *           type: string
  *           nullable: true
@@ -220,11 +228,11 @@
  *           example: https://cdn.example.com/avatar.jpg
  *         role:
  *           type: string
- *           enum: [host, guest]
- *           example: host
+ *           enum: [HOST, GUEST]
+ *           example: GUEST
  *     RegisterInput:
  *       type: object
- *       required: [name, email, username, phone, password, role]
+ *       required: [name, email, username, password]
  *       properties:
  *         name:
  *           type: string
@@ -236,16 +244,13 @@
  *         username:
  *           type: string
  *           example: janehost
- *         phone:
- *           type: string
- *           example: '+1-555-123-4567'
  *         password:
  *           type: string
  *           example: StrongPass123!
  *         role:
  *           type: string
- *           enum: [host, guest]
- *           example: host
+ *           enum: [HOST, GUEST]
+ *           example: GUEST
  *     LoginInput:
  *       type: object
  *       required: [email, password]
@@ -303,8 +308,8 @@
  *           example: 3
  *         type:
  *           type: string
- *           enum: [apartment, house, villa, cabin]
- *           example: apartment
+ *           enum: [APARTMENT, HOUSE, VILLA, CABIN]
+ *           example: APARTMENT
  *         amenities:
  *           type: array
  *           items:
@@ -330,8 +335,8 @@
  *           example: 4
  *         type:
  *           type: string
- *           enum: [apartment, house, villa, cabin]
- *           example: house
+ *           enum: [APARTMENT, HOUSE, VILLA, CABIN]
+ *           example: HOUSE
  *         amenities:
  *           type: array
  *           items:
@@ -339,14 +344,11 @@
  *           example: [WiFi, Kitchen]
  *     CreateBookingInput:
  *       type: object
- *       required: [listingId, userId, checkIn, checkOut]
+ *       required: [listingId, checkIn, checkOut]
  *       properties:
  *         listingId:
  *           type: integer
  *           example: 12
- *         userId:
- *           type: integer
- *           example: 2
  *         checkIn:
  *           type: string
  *           format: date-time
@@ -400,14 +402,25 @@
  *       properties:
  *         status:
  *           type: string
- *           enum: [pending, confirmed, cancelled]
- *           example: confirmed
+ *           enum: [PENDING, CONFIRMED, CANCELLED]
+ *           example: CONFIRMED
  *     ErrorResponse:
  *       type: object
  *       properties:
  *         error:
  *           type: string
  *           example: Resource not found
+ *     ValidationErrorResponse:
+ *       type: object
+ *       properties:
+ *         errors:
+ *           type: array
+ *           items:
+ *             type: object
+ *           example:
+ *             - path: ["email"]
+ *               message: Invalid email format
+ *               code: invalid_string
  *     AuthResponse:
  *       type: object
  *       properties:
@@ -447,7 +460,7 @@
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ValidationErrorResponse'
  *       409:
  *         description: Email already in use
  *         content:
@@ -479,7 +492,7 @@
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ValidationErrorResponse'
  *       401:
  *         description: Invalid credentials
  *         content:
@@ -535,7 +548,7 @@
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ValidationErrorResponse'
  *       401:
  *         description: Unauthorized
  *         content:
@@ -563,6 +576,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/MessageResponse'
+ *       400:
+ *         description: Invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationErrorResponse'
  */
 /**
  * @swagger
