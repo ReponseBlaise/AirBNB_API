@@ -226,14 +226,14 @@
  *                         type: integer
  */
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getUserListings, getUserBookings } from '../controllers/users.controller.js';
-import { getUsersStats } from '../controllers/users.controller.js';
 import profileRouter from './profile.routes.js';
 
 const router = Router();
 
 router.get('/', getAllUsers);
-router.get('/stats', getUsersStats);
+router.get('/stats', (req: Request, res: Response) => res.status(501).json({ message: 'Not implemented' }));
 router.get('/:id', getUserById);
 router.post('/', createUser);
 router.put('/:id', updateUser);

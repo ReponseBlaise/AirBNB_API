@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { prisma } from '../config/prisma.js';
+import prisma from '../config/prisma.js';
 import { cache } from '../config/cache.js';
 import { z } from 'zod';
 
@@ -16,11 +16,16 @@ const createReviewSchema = z.object({
  */
 export const createReview = async (req: Request, res: Response) => {
   try {
-    const listingId = parseInt(req.params.id);
+    const listingIdParam = req.params.id;
+    if (!listingIdParam) {
+      return res.status(400).json({ error: 'Listing ID is required' });
+    }
+
+    const listingId = parseInt(listingIdParam, 10);
     const validation = createReviewSchema.safeParse(req.body);
 
     if (!validation.success) {
-      return res.status(400).json({ error: 'Validation failed', details: validation.error.errors });
+      return res.status(400).json({ error: 'Validation failed', details: validation.error.issues });
     }
 
     const { userId, rating, comment } = validation.data;
@@ -68,7 +73,12 @@ export const createReview = async (req: Request, res: Response) => {
  */
 export const getListingReviews = async (req: Request, res: Response) => {
   try {
-    const listingId = parseInt(req.params.id);
+    const listingIdParam = req.params.id;
+    if (!listingIdParam) {
+      return res.status(400).json({ error: 'Listing ID is required' });
+    }
+
+    const listingId = parseInt(listingIdParam, 10);
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, parseInt(req.query.limit as string) || 10);
     const skip = (page - 1) * limit;
@@ -126,7 +136,12 @@ export const getListingReviews = async (req: Request, res: Response) => {
  */
 export const deleteReview = async (req: Request, res: Response) => {
   try {
-    const reviewId = parseInt(req.params.id);
+    const reviewIdParam = req.params.id;
+    if (!reviewIdParam) {
+      return res.status(400).json({ error: 'Review ID is required' });
+    }
+
+    const reviewId = parseInt(reviewIdParam, 10);
 
     // Find review and get listing ID for cache invalidation
     const review = await prisma.review.findUnique({
