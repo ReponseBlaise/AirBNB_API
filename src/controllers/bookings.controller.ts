@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../config/prisma.js';
-import { Prisma, BookingStatus } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import { createBookingSchema } from '../validators/bookings.validator.js';
 import { sendEmail } from '../config/email.js';
@@ -75,11 +75,11 @@ export const createBooking = async (req: Request, res: Response, next: NextFunct
     const guestId = authReq.userId;
     const totalPrice = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) * listing.pricePerNight;
 
-    const booking = await prisma.$transaction(async (tx) => {
+    const booking = await prisma.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>) => {
       const conflictingBooking = await tx.booking.findFirst({
         where: {
           listingId: result.data.listingId,
-          status: BookingStatus.CONFIRMED,
+          status: 'CONFIRMED',
           checkIn: { lt: checkOutDate },
           checkOut: { gt: checkInDate },
         },
@@ -96,7 +96,7 @@ export const createBooking = async (req: Request, res: Response, next: NextFunct
           checkIn: checkInDate,
           checkOut: checkOutDate,
           totalPrice,
-          status: BookingStatus.PENDING,
+          status: 'PENDING',
         },
       });
     });
@@ -146,7 +146,7 @@ export const deleteBooking = async (req: Request, res: Response, next: NextFunct
       return res.status(403).json({ error: 'You can only cancel your own bookings' });
     }
 
-    if (booking.status === BookingStatus.CANCELLED) {
+    if (booking.status === 'CANCELLED') {
       return res.status(400).json({ error: 'Booking is already cancelled' });
     }
 
@@ -160,7 +160,7 @@ export const deleteBooking = async (req: Request, res: Response, next: NextFunct
 
     await prisma.booking.update({
       where: { id: booking.id },
-      data: { status: BookingStatus.CANCELLED },
+      data: { status: 'CANCELLED' },
     });
 
     res.json({ message: 'Booking cancelled' });
@@ -185,8 +185,9 @@ export const deleteBooking = async (req: Request, res: Response, next: NextFunct
 export const updateBookingStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status } = req.body;
-    if (!status || !Object.values(BookingStatus).includes(status))
-      return res.status(400).json({ error: `Invalid status. Must be one of: ${Object.values(BookingStatus).join(', ')}` });
+    const validStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED'];
+    if (!status || !validStatuses.includes(status))
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
 
     const booking = await prisma.booking.update({
       where: { id: Number(req.params.id) },
