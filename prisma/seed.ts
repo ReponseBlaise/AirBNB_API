@@ -17,10 +17,13 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('🌱 Seeding...');
+  console.log('🌱 Seeding with UUID data...');
 
+  await prisma.review.deleteMany();
   await prisma.booking.deleteMany();
+  await prisma.listingPhoto.deleteMany();
   await prisma.listing.deleteMany();
+  await prisma.profile.deleteMany();
   await prisma.user.deleteMany();
 
   const hashedPassword = await bcrypt.hash('password123', 10);
@@ -194,7 +197,81 @@ async function main() {
     },
   });
 
-  console.log('✅ Seeding complete!');
+  // Create profiles for users
+  await prisma.profile.createMany({
+    data: [
+      {
+        userId: alice.id,
+        bio: 'Passionate host welcoming travelers to Kigali',
+        website: 'https://alice-travels.com',
+        country: 'Rwanda',
+      },
+      {
+        userId: brian.id,
+        bio: 'Family-oriented host with experience',
+        website: null,
+        country: 'Rwanda',
+      },
+      {
+        userId: chloe.id,
+        bio: 'Adventurous traveler exploring Africa',
+        website: null,
+        country: 'Rwanda',
+      },
+      {
+        userId: david.id,
+        bio: 'Business traveler seeking comfort and WiFi',
+        website: null,
+        country: 'Rwanda',
+      },
+      {
+        userId: emma.id,
+        bio: 'Nature lover and hiking enthusiast',
+        website: null,
+        country: 'Rwanda',
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  // Create reviews
+  await prisma.review.createMany({
+    data: [
+      {
+        userId: chloe.id,
+        listingId: skylineApartment.id,
+        rating: 5,
+        comment: 'Amazing apartment! Clean, modern, and great location near restaurants.',
+      },
+      {
+        userId: david.id,
+        listingId: gardenHouse.id,
+        rating: 4,
+        comment: 'Beautiful house with great amenities. Host was very responsive.',
+      },
+      {
+        userId: emma.id,
+        listingId: forestCabin.id,
+        rating: 5,
+        comment: 'Perfect cabin for a nature retreat. Loved the fireplace and peaceful surroundings.',
+      },
+      {
+        userId: chloe.id,
+        listingId: lakeviewVilla.id,
+        rating: 5,
+        comment: 'Luxury villa exceeded expectations! Pool and lake views were spectacular.',
+      },
+      {
+        userId: david.id,
+        listingId: skylineApartment.id,
+        rating: 4,
+        comment: 'Good apartment. WiFi could be stronger but overall pleasant stay.',
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  console.log('✅ Seeding complete with 5 users, 4 listings, 3 bookings, 5 profiles, and 5 reviews!');
 }
 
 main()
