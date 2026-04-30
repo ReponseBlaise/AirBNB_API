@@ -6,7 +6,7 @@ import { createProfileSchema, updateProfileSchema } from '../validators/profile.
 export const getProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const profile = await prisma.profile.findUnique({
-      where: { userId: Number(req.params.id) },
+      where: { userId: req.params.id as string },
     });
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
     res.json(profile);
@@ -17,7 +17,7 @@ export const getProfile = async (req: Request, res: Response, next: NextFunction
 
 export const createProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = Number(req.params.id);
+    const userId = req.params.id as string;
 
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -50,7 +50,7 @@ export const createProfile = async (req: Request, res: Response, next: NextFunct
 
 export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = Number(req.params.id);
+    const userId = req.params.id as string;
 
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const createBookingSchema = z
   .object({
-    listingId: z.number().int().positive("listingId must be a positive integer"),
+    listingId: z.string().uuid("listingId must be a valid UUID"),
     checkIn: z.string().datetime("Invalid checkIn datetime format"),
     checkOut: z.string().datetime("Invalid checkOut datetime format"),
   })

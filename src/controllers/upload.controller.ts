@@ -6,7 +6,7 @@ import { stripSensitiveUserFields } from '../utils/userSanitizer.js';
 
 export async function uploadAvatar(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params['id']);
+    const id = req.params['id'] as string;
 
     if (req.userId !== id) {
       return res.status(403).json({ error: 'You can only update your own avatar' });
@@ -38,7 +38,7 @@ export async function uploadAvatar(req: AuthRequest, res: Response, next: NextFu
 
 export async function deleteAvatar(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params['id']);
+    const id = req.params['id'] as string;
 
     if (req.userId !== id) {
       return res.status(403).json({ error: 'You can only update your own avatar' });
@@ -68,7 +68,7 @@ export async function deleteAvatar(req: AuthRequest, res: Response, next: NextFu
 
 export async function uploadListingPhotos(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params['id']);
+    const id = req.params['id'] as string;
 
     const listing = await prisma.listing.findUnique({ where: { id } });
     if (!listing) return res.status(404).json({ error: 'Listing not found' });
@@ -118,8 +118,8 @@ export async function uploadListingPhotos(req: AuthRequest, res: Response, next:
 
 export async function deleteListingPhoto(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const listingId = Number(req.params['id']);
-    const photoId = Number(req.params['photoId']);
+    const listingId = req.params['id'] as string;
+    const photoId = req.params['photoId'] as string;
 
     const listing = await prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) return res.status(404).json({ error: 'Listing not found' });
@@ -127,7 +127,6 @@ export async function deleteListingPhoto(req: AuthRequest, res: Response, next: 
     if (listing.hostId !== req.userId) {
       return res.status(403).json({ error: 'Only the host can delete photos for this listing' });
     }
-
     const photo = await prisma.listingPhoto.findUnique({ where: { id: photoId } });
     if (!photo) return res.status(404).json({ error: 'Photo not found' });
 

@@ -22,7 +22,7 @@ export const getAllUsers = async (_req: Request, res: Response, next: NextFuncti
 export const getUserById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: Number(req.params.id) },
+      where: { id: req.params.id as string },
       include: {
         listings: {
           include: { _count: { select: { bookings: true } } },
@@ -96,7 +96,7 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
     };
 
     const user = await prisma.user.update({
-      where: { id: Number(req.params.id) },
+      where: { id: req.params.id as string },
       data: updateData,
     });
     
@@ -113,7 +113,7 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
 
 export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.user.delete({ where: { id: Number(req.params.id) } });
+    await prisma.user.delete({ where: { id: req.params.id as string } });
     
     // Invalidate users stats cache
     cache.clear('users:stats');
@@ -127,7 +127,7 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
 export const getUserListings = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const listings = await prisma.listing.findMany({
-      where: { hostId: Number(req.params.id) },
+      where: { hostId: req.params.id as string },
       include: { _count: { select: { bookings: true } } },
     });
     res.json(listings);
@@ -139,7 +139,7 @@ export const getUserListings = async (req: Request, res: Response, next: NextFun
 export const getUserBookings = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const bookings = await prisma.booking.findMany({
-      where: { guestId: Number(req.params.id) },
+      where: { guestId: req.params.id as string },
       include: {
         listing: { select: { title: true, location: true } },
       },

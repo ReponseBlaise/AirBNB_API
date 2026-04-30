@@ -45,7 +45,7 @@ export const getAllListings = async (req: Request, res: Response, next: NextFunc
 export const getListingById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const listing = await prisma.listing.findUnique({
-      where: { id: Number(req.params.id) },
+      where: { id: req.params.id as string },
       include: {
         host: {
           select: {
@@ -113,7 +113,7 @@ export const updateListing = async (req: Request, res: Response, next: NextFunct
     }
 
     const listing = await prisma.listing.findUnique({
-      where: { id: Number(req.params.id) },
+      where: { id: req.params.id as string },
       select: { id: true, hostId: true },
     });
 
@@ -136,7 +136,7 @@ export const updateListing = async (req: Request, res: Response, next: NextFunct
     };
 
     const updatedListing = await prisma.listing.update({
-      where: { id: Number(req.params.id) },
+      where: { id: req.params.id as string },
       data: updateData,
     });
     res.json(updatedListing);
@@ -154,7 +154,7 @@ export const deleteListing = async (req: Request, res: Response, next: NextFunct
     }
 
     const listing = await prisma.listing.findUnique({
-      where: { id: Number(req.params.id) },
+      where: { id: req.params.id as string },
       select: { id: true, hostId: true },
     });
 

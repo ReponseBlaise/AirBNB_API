@@ -23,7 +23,7 @@ export const getAllBookings = async (_req: Request, res: Response, next: NextFun
 export const getBookingById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const booking = await prisma.booking.findUnique({
-      where: { id: Number(req.params.id) },
+      where: { id: req.params.id as string },
       include: {
         guest: { select: { name: true, avatar: true, email: true } },
         listing: { include: { host: { select: { name: true } } } },
@@ -134,7 +134,7 @@ export const deleteBooking = async (req: Request, res: Response, next: NextFunct
     }
 
     const booking = await prisma.booking.findUnique({
-      where: { id: Number(req.params.id) },
+      where: { id: req.params.id as string },
       select: { id: true, guestId: true, status: true },
     });
 
@@ -190,7 +190,7 @@ export const updateBookingStatus = async (req: Request, res: Response, next: Nex
       return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
 
     const booking = await prisma.booking.update({
-      where: { id: Number(req.params.id) },
+      where: { id: req.params.id as string },
       data: { status },
     });
     res.json(booking);

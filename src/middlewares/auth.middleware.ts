@@ -9,12 +9,12 @@ if (!jwtSecret) {
 }
 
 export interface AuthRequest extends Request {
-  userId?: number;
+  userId?: string;
   role?: string;
 }
 
 type TokenPayload = JwtPayload & {
-  userId?: number;
+  userId?: string;
   role?: string;
 };
 
@@ -38,7 +38,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       return res.status(401).json({ error: 'Invalid token payload' });
     }
 
-    if (typeof payload.userId !== 'number' || typeof payload.role !== 'string') {
+    if (typeof payload.userId !== 'string' || typeof payload.role !== 'string') {
       return res.status(401).json({ error: 'Invalid token payload structure' });
     }
 

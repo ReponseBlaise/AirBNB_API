@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 // Validation schema for creating a review
 const createReviewSchema = z.object({
-  userId: z.number().int().positive('Invalid user ID'),
+  userId: z.string().uuid('Invalid user ID'),
   rating: z.number().int().min(1, 'Rating must be at least 1').max(5, 'Rating must be at most 5'),
   comment: z.string().min(1, 'Comment is required').max(1000, 'Comment must be less than 1000 characters'),
 });
@@ -21,7 +21,7 @@ export const createReview = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Listing ID is required' });
     }
 
-    const listingId = parseInt(listingIdParam, 10);
+    const listingId = listingIdParam as string;
     const validation = createReviewSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -78,7 +78,7 @@ export const getListingReviews = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Listing ID is required' });
     }
 
-    const listingId = parseInt(listingIdParam, 10);
+    const listingId = listingIdParam as string;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, parseInt(req.query.limit as string) || 10);
     const skip = (page - 1) * limit;
@@ -141,7 +141,7 @@ export const deleteReview = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Review ID is required' });
     }
 
-    const reviewId = parseInt(reviewIdParam, 10);
+    const reviewId = reviewIdParam as string;
 
     // Find review and get listing ID for cache invalidation
     const review = await prisma.review.findUnique({
