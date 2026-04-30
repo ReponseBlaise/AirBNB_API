@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../config/prisma.js';
-import type { PrismaClient } from '@prisma/client';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import { createBookingSchema } from '../validators/bookings.validator.js';
 import { sendEmail } from '../config/email.js';
