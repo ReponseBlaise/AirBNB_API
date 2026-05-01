@@ -7,7 +7,7 @@ import {
 import { InMemoryChatMessageHistory } from "@langchain/core/chat_history";
 import { RunnableWithMessageHistory } from "@langchain/core/runnables";
 import llm from "../config/ai.js";
-import { prisma } from "../config/prisma.js";
+import prisma from "../config/prisma.js";
 
 // ─── Natural Language Search ──────────────────────────────────────────────────
 
