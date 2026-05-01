@@ -29,6 +29,16 @@ app.use('/api/v1/bookings', strictLimiter);
 app.use('/api/v1', deprecateV1, v1Router);
 
 // Uploads (non versioned)
+// Root: simple API info to avoid 404 on the site root
+app.get('/', (_req, res) =>
+  res.json({
+    message: 'AirBNB API',
+    docs: '/api-docs',
+    health: '/health',
+    api_base: '/api/v1',
+  })
+);
+
 app.use('/', uploadRouter);
 
 // Health check endpoint
