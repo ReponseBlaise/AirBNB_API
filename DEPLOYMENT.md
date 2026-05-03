@@ -41,7 +41,7 @@ While Web Service is building:
 2. **Environment** → Add these variables:
 
 ```
-DATABASE_URL=postgresql://neondb_owner:npg_2LQHhazbZiN3@ep-little-hill-amicuu3y-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+DATABASE_URL=postgresql://<db_user>:<db_password>@<db_host>/<db_name>?sslmode=require
 
 JWT_SECRET=<GENERATE NEW: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))">
 
@@ -55,13 +55,15 @@ API_URL=https://airbnb-api.onrender.com
 
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_USER=mushimiyumukizab@gmail.com
-EMAIL_PASS=pwhtnkrzbknrgbok
-EMAIL_FROM=Airbnb <mushimiyumukizab@gmail.com>
+EMAIL_USER=your-email@example.com
+EMAIL_PASS=your-app-password
+EMAIL_FROM=Airbnb <your-email@example.com>
 
-CLOUDINARY_CLOUD_NAME=dcv1ljiwn
-CLOUDINARY_API_KEY=649948185854428
-CLOUDINARY_API_SECRET=ZlHlGPVBWQHD_MOCJyATXRGOuIY
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+
+GROQ_API_KEY=your-groq-api-key
 ```
 
 3. Click **Save**
