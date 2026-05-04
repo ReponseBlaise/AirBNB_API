@@ -1,17 +1,61 @@
 import type { Request, Response } from "express";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import {
-  JsonOutputParser,
-  StringOutputParser,
-} from "@langchain/core/output_parsers";
-import { InMemoryChatMessageHistory } from "@langchain/core/chat_history";
-import { RunnableWithMessageHistory } from "@langchain/core/runnables";
-import llm from "../config/ai.js";
 import prisma from "../config/prisma.js";
 
-// ─── Natural Language Search ──────────────────────────────────────────────────
+type SearchFilters = {
+  location?: string;
+  type?: string;
+  guests?: number;
+  maxPrice?: number;
+};
 
-const searchPrompt = ChatPromptTemplate.fromTemplate(`
+type AiRuntime = {
+  searchChain: {
+    invoke: (input: { query: string }) => Promise<unknown>;
+  };
+  descriptionChain: {
+    invoke: (input: {
+      title: string;
+      location: string;
+      type: string;
+      guests: number;
+      amenities: string;
+      price: number;
+    }) => Promise<string>;
+  };
+  chatChain: {
+    invoke: (
+      input: { input: string; listingsContext: string },
+      options: { configurable: { sessionId: string } }
+    ) => Promise<unknown>;
+  };
+};
+
+let aiRuntimePromise: Promise<AiRuntime> | null = null;
+
+async function loadAiRuntime(): Promise<AiRuntime> {
+  if (!aiRuntimePromise) {
+    aiRuntimePromise = (async () => {
+      const [groqModule, promptsModule, parsersModule, historyModule, runnableModule] = await Promise.all([
+        import("@langchain/groq"),
+        import("@langchain/core/prompts"),
+        import("@langchain/core/output_parsers"),
+        import("@langchain/core/chat_history"),
+        import("@langchain/core/runnables"),
+      ]);
+
+      const { ChatGroq } = groqModule;
+      const { ChatPromptTemplate } = promptsModule;
+      const { JsonOutputParser, StringOutputParser } = parsersModule;
+      const { InMemoryChatMessageHistory } = historyModule;
+      const { RunnableWithMessageHistory } = runnableModule;
+
+      const llm = new ChatGroq({
+        apiKey: process.env["GROQ_API_KEY"] || "",
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.7,
+      });
+
+      const searchPrompt = ChatPromptTemplate.fromTemplate(`
 You are a search assistant for an Airbnb-like platform.
 Extract search filters from the user's natural language query.
 
@@ -29,9 +73,64 @@ Example: {{"location": "Miami", "type": "VILLA", "guests": 4, "maxPrice": 300}}
 If a field is not mentioned, omit it from the JSON.
 `);
 
-const parser = new JsonOutputParser();
+      const descriptionPrompt = ChatPromptTemplate.fromTemplate(`
+You are a professional copywriter for an Airbnb-like platform.
+Write an engaging, warm, and descriptive listing description.
 
-const searchChain = searchPrompt.pipe(llm).pipe(parser);
+Listing details:
+- Title: {title}
+- Location: {location}
+- Type: {type}
+- Max guests: {guests}
+- Amenities: {amenities}
+- Price per night: ${price} USD
+
+Write a 3-paragraph description:
+1. Opening hook - what makes this place special
+2. The space - describe the property and its features
+3. The location - what guests can do nearby
+
+Keep it between 150-200 words. Be specific and inviting. Do not use generic phrases like "perfect getaway".
+`);
+
+      const sessionHistories = new Map<string, InstanceType<typeof InMemoryChatMessageHistory>>();
+
+      function getSessionHistory(sessionId: string): InstanceType<typeof InMemoryChatMessageHistory> {
+        if (!sessionHistories.has(sessionId)) {
+          sessionHistories.set(sessionId, new InMemoryChatMessageHistory());
+        }
+        return sessionHistories.get(sessionId)!;
+      }
+
+      const chatPrompt = ChatPromptTemplate.fromMessages([
+        [
+          "system",
+          `You are a helpful Airbnb assistant. You help guests find listings, answer questions about properties, and assist with bookings.
+
+Available listings context: {listingsContext}
+
+Be friendly, concise, and helpful. If you don't know something, say so.
+If asked about specific listings, refer to the context provided.`,
+        ],
+        ["placeholder", "{chat_history}"],
+        ["human", "{input}"],
+      ]);
+
+      return {
+        searchChain: searchPrompt.pipe(llm).pipe(new JsonOutputParser()),
+        descriptionChain: descriptionPrompt.pipe(llm).pipe(new StringOutputParser()),
+        chatChain: new RunnableWithMessageHistory({
+          runnable: chatPrompt.pipe(llm),
+          getMessageHistory: getSessionHistory,
+          inputMessagesKey: "input",
+          historyMessagesKey: "chat_history",
+        }),
+      };
+    })();
+  }
+
+  return aiRuntimePromise;
+}
 
 export async function naturalLanguageSearch(req: Request, res: Response) {
   try {
@@ -41,15 +140,9 @@ export async function naturalLanguageSearch(req: Request, res: Response) {
       return res.status(400).json({ error: "query is required" });
     }
 
-    // Extract filters from natural language using AI
-    const filters = (await searchChain.invoke({ query })) as {
-      location?: string;
-      type?: string;
-      guests?: number;
-      maxPrice?: number;
-    };
+    const { searchChain } = await loadAiRuntime();
+    const filters = (await searchChain.invoke({ query })) as SearchFilters;
 
-    // Build Prisma where clause from extracted filters
     const where: Record<string, unknown> = {};
 
     if (filters.location) {
@@ -85,46 +178,17 @@ export async function naturalLanguageSearch(req: Request, res: Response) {
   }
 }
 
-// ─── Listing Description Generator ───────────────────────────────────────────
-
-const descriptionPrompt = ChatPromptTemplate.fromTemplate(`
-You are a professional copywriter for an Airbnb-like platform.
-Write an engaging, warm, and descriptive listing description.
-
-Listing details:
-- Title: {title}
-- Location: {location}
-- Type: {type}
-- Max guests: {guests}
-- Amenities: {amenities}
-- Price per night: ${"{price}"} USD
-
-Write a 3-paragraph description:
-1. Opening hook — what makes this place special
-2. The space — describe the property and its features
-3. The location — what guests can do nearby
-
-Keep it between 150-200 words. Be specific and inviting. Do not use generic phrases like "perfect getaway".
-`);
-
-const descriptionChain = descriptionPrompt
-  .pipe(llm)
-  .pipe(new StringOutputParser());
-
-export async function generateListingDescription(
-  req: Request,
-  res: Response
-) {
+export async function generateListingDescription(req: Request, res: Response) {
   try {
     const { title, location, type, guests, amenities, price } = req.body;
 
     if (!title || !location || !type || !guests || !amenities || !price) {
       return res.status(400).json({
-        error:
-          "title, location, type, guests, amenities, and price are required",
+        error: "title, location, type, guests, amenities, and price are required",
       });
     }
 
+    const { descriptionChain } = await loadAiRuntime();
     const description = await descriptionChain.invoke({
       title,
       location,
@@ -141,55 +205,14 @@ export async function generateListingDescription(
   }
 }
 
-// ─── Chatbot with Memory ──────────────────────────────────────────────────────
-
-// Store conversation histories in memory
-// In production, store these in Redis or a database
-const sessionHistories = new Map<string, InMemoryChatMessageHistory>();
-
-function getSessionHistory(sessionId: string): InMemoryChatMessageHistory {
-  if (!sessionHistories.has(sessionId)) {
-    sessionHistories.set(sessionId, new InMemoryChatMessageHistory());
-  }
-  return sessionHistories.get(sessionId)!;
-}
-
-// ─── Chatbot ──────────────────────────────────────────────────────────────────
-
-const chatPrompt = ChatPromptTemplate.fromMessages([
-  [
-    "system",
-    `You are a helpful Airbnb assistant. You help guests find listings, answer questions about properties, and assist with bookings.
-
-Available listings context: {listingsContext}
-
-Be friendly, concise, and helpful. If you don't know something, say so.
-If asked about specific listings, refer to the context provided.`,
-  ],
-  ["placeholder", "{chat_history}"],
-  ["human", "{input}"],
-]);
-
-const chatChain = chatPrompt.pipe(llm);
-
-const chainWithHistory = new RunnableWithMessageHistory({
-  runnable: chatChain,
-  getMessageHistory: getSessionHistory,
-  inputMessagesKey: "input",
-  historyMessagesKey: "chat_history",
-});
-
 export async function chat(req: Request, res: Response) {
   try {
     const { message, sessionId } = req.body;
 
     if (!message || !sessionId) {
-      return res
-        .status(400)
-        .json({ error: "message and sessionId are required" });
+      return res.status(400).json({ error: "message and sessionId are required" });
     }
 
-    // Fetch recent listings to give the AI context about available properties
     const listings = await prisma.listing.findMany({
       take: 5,
       select: {
@@ -204,12 +227,13 @@ export async function chat(req: Request, res: Response) {
 
     const listingsContext = listings
       .map(
-        (l: typeof listings[0]) =>
-          `- ${l.title} in ${l.location}: $${l.pricePerNight}/night, ${l.type}, up to ${l.guests} guests, amenities: ${l.amenities.join(", ")}`
+        (listing: (typeof listings)[number]) =>
+          `- ${listing.title} in ${listing.location}: $${listing.pricePerNight}/night, ${listing.type}, up to ${listing.guests} guests, amenities: ${listing.amenities.join(", ")}`
       )
       .join("\n");
 
-    const reply = await chainWithHistory.invoke(
+    const { chatChain } = await loadAiRuntime();
+    const reply = await chatChain.invoke(
       { input: message, listingsContext },
       { configurable: { sessionId } }
     );
