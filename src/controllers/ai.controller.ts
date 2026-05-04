@@ -83,7 +83,7 @@ Listing details:
 - Type: {type}
 - Max guests: {guests}
 - Amenities: {amenities}
-- Price per night: ${price} USD
+- Price per night: {price} USD
 
 Write a 3-paragraph description:
 1. Opening hook - what makes this place special
