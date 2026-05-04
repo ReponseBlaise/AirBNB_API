@@ -24,7 +24,12 @@ const swaggerSpec = swaggerJsdoc({
       },
     },
   },
-  apis: ['./src/routes/*.ts'],
+  apis: [
+    './src/routes/**/*.ts',
+    './src/routes/**/*.js',
+    './src/routes/v1/**/*.ts',
+    './src/routes/v1/**/*.js',
+  ],
 });
 
 export function setupSwagger(app: Express) {
