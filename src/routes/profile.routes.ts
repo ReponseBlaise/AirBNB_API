@@ -1,6 +1,6 @@
 /**
  * @swagger
- * /users/{id}/profile:
+ * /api/v1/users/{id}/profile:
  *   get:
  *     tags: [Profile]
  *     summary: Get a user's profile
@@ -9,7 +9,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: Profile found
@@ -26,7 +27,7 @@
  */
 /**
  * @swagger
- * /users/{id}/profile:
+ * /api/v1/users/{id}/profile:
  *   post:
  *     tags: [Profile]
  *     summary: Create a user's profile
@@ -35,7 +36,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
@@ -70,7 +72,7 @@
  */
 /**
  * @swagger
- * /users/{id}/profile:
+ * /api/v1/users/{id}/profile:
  *   put:
  *     tags: [Profile]
  *     summary: Update a user's profile
@@ -79,7 +81,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:

@@ -88,6 +88,19 @@ export const createBooking = async (req: Request, res: Response, next: NextFunct
         throw new Error('BOOKING_CONFLICT');
       }
 
+      const conflictingGuestBooking = await tx.booking.findFirst({
+        where: {
+          guestId,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          checkIn: { lt: checkOutDate },
+          checkOut: { gt: checkInDate },
+        },
+      });
+
+      if (conflictingGuestBooking) {
+        throw new Error('GUEST_BOOKING_CONFLICT');
+      }
+
       return tx.booking.create({
         data: {
           listingId: result.data.listingId,
@@ -116,8 +129,13 @@ export const createBooking = async (req: Request, res: Response, next: NextFunct
       console.error('Booking confirmation email failed:', emailError);
     }
   } catch (error) {
-    if (error instanceof Error && error.message === 'BOOKING_CONFLICT') {
-      return res.status(409).json({ error: 'Booking conflicts with an existing confirmed booking' });
+    if (error instanceof Error) {
+      if (error.message === 'BOOKING_CONFLICT') {
+        return res.status(409).json({ error: 'Booking conflicts with an existing confirmed booking' });
+      }
+      if (error.message === 'GUEST_BOOKING_CONFLICT') {
+        return res.status(409).json({ error: 'You already have a booking overlapping these dates' });
+      }
     }
 
     next(error);

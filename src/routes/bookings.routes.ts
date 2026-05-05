@@ -1,6 +1,6 @@
 /**
  * @swagger
- * /bookings:
+ * /api/v1/bookings:
  *   get:
  *     tags: [Bookings]
  *     summary: Get all bookings
@@ -29,7 +29,7 @@
  */
 /**
  * @swagger
- * /bookings/{id}:
+ * /api/v1/bookings/{id}:
  *   get:
  *     tags: [Bookings]
  *     summary: Get a booking by id
@@ -40,7 +40,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: Booking found
@@ -57,7 +58,7 @@
  */
 /**
  * @swagger
- * /bookings:
+ * /api/v1/bookings:
  *   post:
  *     tags: [Bookings]
  *     summary: Create a booking
@@ -97,7 +98,7 @@
  */
 /**
  * @swagger
- * /bookings/{id}:
+ * /api/v1/bookings/{id}:
  *   delete:
  *     tags: [Bookings]
  *     summary: Cancel a booking
@@ -108,7 +109,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: Booking cancelled
@@ -131,7 +133,7 @@
  */
 /**
  * @swagger
- * /bookings/{id}/status:
+ * /api/v1/bookings/{id}/status:
  *   patch:
  *     tags: [Bookings]
  *     summary: Update booking status
@@ -140,7 +142,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:

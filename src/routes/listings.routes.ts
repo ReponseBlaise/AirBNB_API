@@ -1,6 +1,6 @@
 /**
  * @swagger
- * /listings:
+ * /api/v1/listings:
  *   get:
  *     tags: [Listings]
  *     summary: Get all listings
@@ -48,7 +48,7 @@
  */
 /**
  * @swagger
- * /listings/search:
+ * /api/v1/listings/search:
  *   get:
  *     tags: [Listings]
  *     summary: Search listings
@@ -96,7 +96,7 @@
  */
 /**
  * @swagger
- * /listings/stats:
+ * /api/v1/listings/stats:
  *   get:
  *     tags: [Listings]
  *     summary: Get listing stats
@@ -123,7 +123,7 @@
  */
 /**
  * @swagger
- * /listings/{id}:
+ * /api/v1/listings/{id}:
  *   get:
  *     tags: [Listings]
  *     summary: Get a listing by id
@@ -132,7 +132,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: Listing found
@@ -149,7 +150,7 @@
  */
 /**
  * @swagger
- * /listings:
+ * /api/v1/listings:
  *   post:
  *     tags: [Listings]
  *     summary: Create a listing
@@ -183,7 +184,7 @@
  */
 /**
  * @swagger
- * /listings/{id}:
+ * /api/v1/listings/{id}:
  *   put:
  *     tags: [Listings]
  *     summary: Update a listing
@@ -194,7 +195,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
@@ -223,7 +225,7 @@
  */
 /**
  * @swagger
- * /listings/{id}:
+ * /api/v1/listings/{id}:
  *   delete:
  *     tags: [Listings]
  *     summary: Delete a listing
@@ -234,7 +236,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: Listing deleted

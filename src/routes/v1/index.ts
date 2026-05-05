@@ -12,7 +12,7 @@ v1Router.use('/auth', authRouter);
 v1Router.use('/users', usersRouter);
 v1Router.use('/listings', listingsRouter);
 v1Router.use('/bookings', bookingsRouter);
-v1Router.use('/reviews', reviewsRouter);
+v1Router.use('/', reviewsRouter);
 v1Router.use('/ai', aiRouter);
 
 export default v1Router;

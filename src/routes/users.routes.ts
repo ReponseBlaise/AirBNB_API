@@ -1,6 +1,6 @@
 /**
  * @swagger
- * /users:
+ * /api/v1/users:
  *   get:
  *     tags: [Users]
  *     summary: Get all users
@@ -29,7 +29,7 @@
  */
 /**
  * @swagger
- * /users/{id}:
+ * /api/v1/users/{id}:
  *   get:
  *     tags: [Users]
  *     summary: Get a user by id
@@ -40,7 +40,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: User found
@@ -57,7 +58,7 @@
  */
 /**
  * @swagger
- * /users:
+ * /api/v1/users:
  *   post:
  *     tags: [Users]
  *     summary: Create a user
@@ -83,7 +84,7 @@
  */
 /**
  * @swagger
- * /users/{id}:
+ * /api/v1/users/{id}:
  *   put:
  *     tags: [Users]
  *     summary: Update a user
@@ -94,7 +95,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
@@ -123,7 +125,7 @@
  */
 /**
  * @swagger
- * /users/{id}:
+ * /api/v1/users/{id}:
  *   delete:
  *     tags: [Users]
  *     summary: Delete a user
@@ -134,7 +136,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: User deleted
@@ -151,7 +154,7 @@
  */
 /**
  * @swagger
- * /users/{id}/listings:
+ * /api/v1/users/{id}/listings:
  *   get:
  *     tags: [Users]
  *     summary: Get listings for a user
@@ -162,7 +165,8 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: Listings returned
@@ -175,7 +179,7 @@
  */
 /**
  * @swagger
- * /users/{id}/bookings:
+ * /api/v1/users/{id}/bookings:
  *   get:
  *     tags: [Users]
  *     summary: Get bookings for a user
@@ -199,7 +203,7 @@
  */
 /**
  * @swagger
- * /users/stats:
+ * /api/v1/users/stats:
  *   get:
  *     tags: [Users]
  *     summary: Get user statistics (role breakdown)

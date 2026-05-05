@@ -2,41 +2,53 @@ import type { Express, Request, Response } from 'express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
-const port = process.env.PORT || 3000;
-const baseUrl = `http://localhost:${port}`;
-
-const swaggerSpec = swaggerJsdoc({
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Airbnb API',
-      version: '1.0.0',
-      description: 'Interactive API documentation for the Airbnb clone, including auth, users, listings, bookings, profile, and uploads.',
-    },
-    servers: [{ url: baseUrl, description: 'Development server' }],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
-      },
-    },
-  },
-  apis: [
-    './src/routes/**/*.ts',
-    './src/routes/**/*.js',
-    './src/routes/v1/**/*.ts',
-    './src/routes/v1/**/*.js',
-  ],
-});
+const APIS_GLOBS = [
+  './src/routes/**/*.ts',
+  './src/routes/**/*.js',
+  './src/routes/v1/**/*.ts',
+  './src/routes/v1/**/*.js',
+];
 
 export function setupSwagger(app: Express) {
   const port = process.env.PORT || 3000;
   const baseUrl = `http://localhost:${port}`;
-  
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+  const swaggerSpec = swaggerJsdoc({
+    definition: {
+      openapi: '3.0.0',
+      info: {
+        title: 'Airbnb API',
+        version: '1.0.0',
+        description:
+          'Interactive API documentation for the Airbnb clone, including auth, users, listings, bookings, profile, and uploads.',
+      },
+      servers: [
+        { url: baseUrl, description: 'Development server root (uploads, health, and versioned routes prefixed with /api/v1)' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
+      },
+    },
+    apis: APIS_GLOBS,
+  });
+
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: 'list',
+      },
+    })
+  );
+
   app.get('/api-docs.json', (_req: Request, res: Response) => {
     res.json(swaggerSpec);
   });

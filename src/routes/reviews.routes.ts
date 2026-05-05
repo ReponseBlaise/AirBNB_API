@@ -5,7 +5,7 @@ const reviewsRouter = Router();
 
 /**
  * @swagger
- * /listings/{id}/reviews:
+ * /api/v1/listings/{id}/reviews:
  *   get:
  *     tags: [Reviews]
  *     summary: Get all reviews for a listing (paginated, cached for 30s)
@@ -14,7 +14,8 @@ const reviewsRouter = Router();
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *         description: Listing ID
  *       - in: query
  *         name: page
@@ -39,7 +40,8 @@ const reviewsRouter = Router();
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *         description: Listing ID
  *     requestBody:
  *       required: true
@@ -85,7 +87,7 @@ reviewsRouter.post('/listings/:id/reviews', createReview);
 
 /**
  * @swagger
- * /reviews/{id}:
+ * /api/v1/reviews/{id}:
  *   delete:
  *     tags: [Reviews]
  *     summary: Delete a review (cache invalidated)
@@ -94,7 +96,8 @@ reviewsRouter.post('/listings/:id/reviews', createReview);
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *         description: Review ID
  *     responses:
  *       200:

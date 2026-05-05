@@ -7,8 +7,9 @@
  *       required: [id, name, email, username, phone, role, avatar, avatarPublicId, createdAt, updatedAt]
  *       properties:
  *         id:
- *           type: integer
- *           example: 1
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440000
  *         name:
  *           type: string
  *           example: Jane Host
@@ -47,8 +48,9 @@
  *       required: [id, userId]
  *       properties:
  *         id:
- *           type: integer
- *           example: 9
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440001
  *         bio:
  *           type: string
  *           nullable: true
@@ -62,15 +64,17 @@
  *           nullable: true
  *           example: Kenya
  *         userId:
- *           type: integer
- *           example: 1
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440000
  *     Listing:
  *       type: object
  *       required: [id, title, description, location, pricePerNight, guests, type, amenities, hostId, host, createdAt, updatedAt]
  *       properties:
  *         id:
- *           type: integer
- *           example: 12
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440002
  *         title:
  *           type: string
  *           example: Downtown Loft
@@ -100,8 +104,9 @@
  *           nullable: true
  *           example: 4.8
  *         hostId:
- *           type: integer
- *           example: 1
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440000
  *         host:
  *           $ref: '#/components/schemas/User'
  *         createdAt:
@@ -117,8 +122,9 @@
  *       required: [id, checkIn, checkOut, totalPrice, status, guestId, listingId, guest, listing, createdAt]
  *       properties:
  *         id:
- *           type: integer
- *           example: 100
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440003
  *         checkIn:
  *           type: string
  *           format: date-time
@@ -135,11 +141,13 @@
  *           enum: [PENDING, CONFIRMED, CANCELLED]
  *           example: CONFIRMED
  *         guestId:
- *           type: integer
- *           example: 2
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440004
  *         listingId:
- *           type: integer
- *           example: 12
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440002
  *         guest:
  *           $ref: '#/components/schemas/User'
  *         listing:
@@ -153,8 +161,9 @@
  *       required: [id, rating, comment, userId, listingId, user, createdAt]
  *       properties:
  *         id:
- *           type: integer
- *           example: 7
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440005
  *         rating:
  *           type: integer
  *           minimum: 1
@@ -164,11 +173,13 @@
  *           type: string
  *           example: Perfect weekend stay.
  *         userId:
- *           type: integer
- *           example: 2
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440004
  *         listingId:
- *           type: integer
- *           example: 12
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440002
  *         user:
  *           $ref: '#/components/schemas/User'
  *         createdAt:
@@ -347,8 +358,9 @@
  *       required: [listingId, checkIn, checkOut]
  *       properties:
  *         listingId:
- *           type: integer
- *           example: 12
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440002
  *         checkIn:
  *           type: string
  *           format: date-time
@@ -362,8 +374,9 @@
  *       required: [userId, rating, comment]
  *       properties:
  *         userId:
- *           type: integer
- *           example: 2
+ *           type: string
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440004
  *         rating:
  *           type: integer
  *           minimum: 1
@@ -438,7 +451,7 @@
  */
 /**
  * @swagger
- * /auth/register:
+ * /api/v1/auth/register:
  *   post:
  *     tags: [Auth]
  *     summary: Register a new user
@@ -470,7 +483,7 @@
  */
 /**
  * @swagger
- * /auth/login:
+ * /api/v1/auth/login:
  *   post:
  *     tags: [Auth]
  *     summary: Log in and get a JWT
@@ -502,7 +515,7 @@
  */
 /**
  * @swagger
- * /auth/me:
+ * /api/v1/auth/me:
  *   get:
  *     tags: [Auth]
  *     summary: Get the current authenticated user
@@ -524,7 +537,7 @@
  */
 /**
  * @swagger
- * /auth/change-password:
+ * /api/v1/auth/change-password:
  *   post:
  *     tags: [Auth]
  *     summary: Change the current password
@@ -558,7 +571,7 @@
  */
 /**
  * @swagger
- * /auth/forgot-password:
+ * /api/v1/auth/forgot-password:
  *   post:
  *     tags: [Auth]
  *     summary: Request a password reset link
@@ -585,7 +598,7 @@
  */
 /**
  * @swagger
- * /auth/reset-password/{token}:
+ * /api/v1/auth/reset-password/{token}:
  *   post:
  *     tags: [Auth]
  *     summary: Reset a password with a token
