@@ -1,22 +1,15 @@
-import type { NextFunction, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import jwt, { type SignOptions } from 'jsonwebtoken';
-import { z } from 'zod';
-import prisma from '../config/prisma.js';
-import { stripSensitiveUserFields } from '../utils/userSanitizer.js';
-import type { AuthRequest } from '../middlewares/auth.middleware.js';
-import { sendEmail } from '../config/email.js';
-import { welcomeEmail, passwordResetEmail } from '../templates/emails.js';
+import { prisma } from '../config/prisma';
+import { createAccessToken, createRefreshToken } from '../utils/jwt';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService';
 
-const userModel = (prisma as any).user;
-
-const jwtSecret = (process.env['JWT_SECRET'] ?? '') as jwt.Secret;
-const jwtExpiresIn = process.env['JWT_EXPIRES_IN'] ?? '7d';
-
-if (!jwtSecret) {
-  throw new Error('JWT_SECRET environment variable is not set');
-}
+const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+const VERIFICATION_TOKEN_EXPIRY = 60 * 60 * 1000; // 1 hour
+const RESET_TOKEN_EXPIRY = 30 * 60 * 1000; // 30 minutes
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
 const registerSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
@@ -31,290 +24,309 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
-const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
-});
-
-const forgotPasswordSchema = z.object({
-  email: z.string().trim().email('Invalid email format'),
-});
-
-const resetPasswordSchema = z.object({
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-});
-
-function signToken(userId: number, role: string) {
-  return jwt.sign({ userId, role }, jwtSecret, { expiresIn: jwtExpiresIn as NonNullable<SignOptions['expiresIn']> });
-}
-
-
-export async function register(req: AuthRequest, res: Response, next: NextFunction) {
+/**
+ * @route   POST /api/v1/auth/register
+ * @desc    Register a new user with email and password
+ * @access  Public
+ */
+export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = registerSchema.safeParse(req.body);
+    const { name, email, password, confirmPassword } = req.body;
 
-    if (!result.success) {
-      return res.status(400).json({ errors: result.error.issues });
+    // Validation
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const existingUser = await userModel.findFirst({
-      where: {
-        OR: [{ email: result.data.email }, { username: result.data.username }],
-      },
-    });
-
-    if (existingUser) {
-      return res.status(409).json({ error: 'Email or username already taken' });
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' });
     }
 
-    const hashedPassword = await bcrypt.hash(result.data.password, 10);
-
-    const user = await userModel.create({
-      data: {
-        name: result.data.name,
-        email: result.data.email,
-        username: result.data.username,
-        phone: 'N/A',
-        password: hashedPassword,
-        role: result.data.role ?? 'GUEST',
-      },
-    });
-
-    res.status(201).json(stripSensitiveUserFields(user));
-
-    try {
-      await sendEmail(user.email, 'Welcome to Airbnb!', welcomeEmail(user.name, user.role));
-    } catch (emailError) {
-      console.error('Welcome email failed:', emailError);
-    }
-
-    return;
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function login(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const result = loginSchema.safeParse(req.body);
-
-    if (!result.success) {
-      return res.status(400).json({ errors: result.error.issues });
-    }
-
-    const user = await userModel.findUnique({
-      where: { email: result.data.email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        phone: true,
-        role: true,
-        avatar: true,
-        createdAt: true,
-        password: true,
-        resetToken: true,
-        resetTokenExpiry: true,
-      },
-    });
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const passwordMatches = await bcrypt.compare(result.data.password, user.password);
-
-    if (!passwordMatches) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const token = signToken(user.id, user.role);
-
-    return res.json({
-      token,
-      user: stripSensitiveUserFields(user),
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function getMe(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    if (!req.userId) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
-
-    const user = await userModel.findUnique({
-      where: { id: req.userId },
-      include: {
-        profile: true,
-        listings: req.role === 'HOST' || req.role === 'ADMIN' ? { include: { _count: { select: { bookings: true } } } } : false,
-        bookings:
-          req.role === 'GUEST' || req.role === 'ADMIN'
-            ? {
-                include: {
-                  listing: { select: { id: true, title: true, location: true, pricePerNight: true } },
-                },
-              }
-            : false,
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    return res.json(stripSensitiveUserFields(user));
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function changePassword(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    if (!req.userId) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
-
-    const result = changePasswordSchema.safeParse(req.body);
-
-    if (!result.success) {
-      return res.status(400).json({ errors: result.error.issues });
-    }
-
-    const user = await userModel.findUnique({
-      where: { id: req.userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        phone: true,
-        role: true,
-        avatar: true,
-        createdAt: true,
-        password: true,
-        resetToken: true,
-        resetTokenExpiry: true,
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const currentMatches = await bcrypt.compare(result.data.currentPassword, user.password);
-
-    if (!currentMatches) {
-      return res.status(401).json({ error: 'Invalid current password' });
-    }
-
-    const hashedPassword = await bcrypt.hash(result.data.newPassword, 10);
-
-    await userModel.update({
-      where: { id: req.userId },
-      data: {
-        password: hashedPassword,
-        resetToken: null,
-        resetTokenExpiry: null,
-      },
-    });
-
-    return res.json({ message: 'Password updated successfully' });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function forgotPassword(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const result = forgotPasswordSchema.safeParse(req.body);
-
-    if (!result.success) {
-      return res.status(400).json({ errors: result.error.issues });
-    }
-
-    const user = await userModel.findUnique({
-      where: { email: result.data.email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        phone: true,
-        role: true,
-        avatar: true,
-        createdAt: true,
-        password: true,
-        resetToken: true,
-        resetTokenExpiry: true,
-      },
-    });
-
-    if (user) {
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-      const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
-      const resetUrl = `${process.env['API_URL'] ?? 'http://localhost:3000'}/auth/reset-password/${rawToken}`;
-
-      await userModel.update({
-        where: { id: user.id },
-        data: {
-          resetToken: hashedToken,
-          resetTokenExpiry,
-        },
+    if (!PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({
+        error: 'Password must be at least 8 characters with uppercase, digit, and special character',
       });
-
-      try {
-        await sendEmail(user.email, 'Reset your password', passwordResetEmail(user.name, resetUrl));
-      } catch (emailError) {
-        console.error('Password reset email failed:', emailError);
-      }
     }
 
-    return res.status(200).json({ message: 'If that email is registered, a reset link has been sent' });
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    const verificationExpiry = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY);
+
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        emailVerificationToken: verificationTokenHash,
+        emailVerificationExpiry: verificationExpiry,
+      },
+    });
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, verificationToken);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+    }
+
+    res.status(201).json({
+      message: 'User registered successfully. Check your email to verify your account.',
+      userId: user.id,
+    });
   } catch (error) {
     next(error);
   }
-}
+};
 
-export async function resetPassword(req: AuthRequest, res: Response, next: NextFunction) {
+/**
+ * @route   GET /api/v1/auth/verify-email
+ * @desc    Verify email with token
+ * @access  Public
+ */
+export const verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = resetPasswordSchema.safeParse(req.body);
+    const { token } = req.query;
 
-    if (!result.success) {
-      return res.status(400).json({ errors: result.error.issues });
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Invalid verification token' });
     }
 
-    const rawToken = req.params['token'];
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    if (!rawToken) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
-    }
-
-    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-
-    const user = await userModel.findFirst({
+    const user = await prisma.user.findFirst({
       where: {
-        resetToken: hashedToken,
-        resetTokenExpiry: {
-          gt: new Date(),
-        },
+        emailVerificationToken: tokenHash,
+        emailVerificationExpiry: { gt: new Date() },
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        phone: true,
-        role: true,
-        avatar: true,
-        createdAt: true,
-        password: true,
-        resetToken: true,
-        resetTokenExpiry: true,
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired verification token' });
+    }
+
+    // Update user
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        emailVerificationToken: null,
+        emailVerificationExpiry: null,
+      },
+    });
+
+    res.json({ message: 'Email verified successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/v1/auth/login
+ * @desc    Login user with email and password
+ * @access  Public
+ */
+export const login = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, password, deviceId } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Check password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return res.status(403).json({ error: 'Please verify your email first' });
+    }
+
+    // Create tokens
+    const accessToken = createAccessToken(user.id, user.email, user.role);
+    const refreshToken = createRefreshToken(user.id);
+
+    // Store session
+    const ipAddress = req.ip || '';
+    const userAgent = req.get('user-agent') || '';
+    const device = deviceId || 'web';
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token: refreshToken,
+        device,
+        ipAddress,
+        userAgent,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      },
+    });
+
+    res.json({
+      message: 'Login successful',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/v1/auth/refresh-token
+ * @desc    Refresh access token
+ * @access  Private
+ */
+export const refreshToken = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { refreshToken: token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Refresh token required' });
+    }
+
+    const session = await prisma.session.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+
+    const user = session.user;
+    const accessToken = createAccessToken(user.id, user.email, user.role);
+
+    res.json({
+      accessToken,
+      refreshToken: token,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/v1/auth/logout
+ * @desc    Logout user
+ * @access  Private
+ */
+export const logout = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const refreshToken = req.body.refreshToken;
+
+    if (refreshToken) {
+      await prisma.session.deleteMany({
+        where: { token: refreshToken },
+      });
+    }
+
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/v1/auth/forgot-password
+ * @desc    Request password reset
+ * @access  Public
+ */
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      // Don't reveal if email exists (security)
+      return res.json({ message: 'If email exists, password reset link has been sent' });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetExpiry = new Date(Date.now() + RESET_TOKEN_EXPIRY);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: resetTokenHash,
+        passwordResetExpiry: resetExpiry,
+      },
+    });
+
+    // Send reset email
+    try {
+      await sendPasswordResetEmail(email, resetToken);
+    } catch (error) {
+      console.error('Failed to send password reset email:', error);
+    }
+
+    res.json({ message: 'If email exists, password reset link has been sent' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/v1/auth/reset-password
+ * @desc    Reset password with token
+ * @access  Public
+ */
+export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, password, confirmPassword } = req.body;
+
+    if (!token || !password || !confirmPassword) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' });
+    }
+
+    if (!PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({
+        error: 'Password must be at least 8 characters with uppercase, digit, and special character',
+      });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: tokenHash,
+        passwordResetExpiry: { gt: new Date() },
       },
     });
 
@@ -322,19 +334,103 @@ export async function resetPassword(req: AuthRequest, res: Response, next: NextF
       return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
 
-    const hashedPassword = await bcrypt.hash(result.data.password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    await userModel.update({
+    await prisma.user.update({
       where: { id: user.id },
       data: {
         password: hashedPassword,
-        resetToken: null,
-        resetTokenExpiry: null,
+        passwordResetToken: null,
+        passwordResetExpiry: null,
       },
     });
 
-    return res.status(200).json({ message: 'Password reset successfully' });
+    res.json({ message: 'Password reset successfully' });
   } catch (error) {
     next(error);
   }
-}
+};
+
+/**
+ * @route   POST /api/v1/auth/change-password
+ * @desc    Change password (authenticated)
+ * @access  Private
+ */
+export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).userId;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    if (!PASSWORD_REGEX.test(newPassword)) {
+      return res.status(400).json({
+        error: 'Password must be at least 8 characters with uppercase, digit, and special character',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/v1/auth/me
+ * @desc    Get current user profile
+ * @access  Private
+ */
+export const getMe = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).userId;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        emailVerified: true,
+        role: true,
+        avatar: true,
+        bio: true,
+        phone: true,
+        createdAt: true,
+        isSuperhost: true,
+        totalEarnings: true,
+        totalSpent: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+};

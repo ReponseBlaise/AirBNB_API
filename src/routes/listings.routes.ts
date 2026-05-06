@@ -259,16 +259,36 @@
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 import { Router } from 'express';
-import { getAllListings, getListingById, getListingStats, createListing, updateListing, deleteListing } from '../controllers/listings.controller.js';
-import { authenticate, requireHost } from '../middlewares/auth.middleware.js';
+import { authenticate } from '../middlewares/auth.middleware';
+import {
+  getListings,
+  getListingById,
+  createListing,
+  updateListing,
+  uploadPhotos,
+  deletePhoto,
+  publishListing,
+  setAvailability,
+  getAvailability,
+  getHostListings,
+  deleteListing,
+} from '../controllers/listings.controller';
 
 const router = Router();
 
-router.get('/', getAllListings);
-router.get('/stats', getListingStats);
-router.get('/:id', getListingById);
+// Public routes
+router.get('/', getListings);
+router.get('/:listingId', getListingById);
+router.get('/:listingId/availability', getAvailability);
+router.get('/host/:hostId', getHostListings);
+
+// Protected routes (Host only)
 router.post('/', authenticate, createListing);
-router.put('/:id', authenticate, updateListing);
-router.delete('/:id', authenticate, deleteListing);
+router.put('/:listingId', authenticate, updateListing);
+router.post('/:listingId/publish', authenticate, publishListing);
+router.post('/:listingId/photos', authenticate, uploadPhotos);
+router.delete('/:listingId/photos/:photoId', authenticate, deletePhoto);
+router.post('/:listingId/availability', authenticate, setAvailability);
+router.delete('/:listingId', authenticate, deleteListing);
 
 export default router;

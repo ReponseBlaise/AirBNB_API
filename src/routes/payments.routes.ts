@@ -1,0 +1,127 @@
+import { Router } from 'express';
+import {
+  authorizePayment,
+  capturePayment,
+  refundPayment,
+  getPayment,
+  getBookingPayments,
+  getUserPayments,
+} from '../controllers/payments.controller';
+import { authenticate } from '../middlewares/auth.middleware';
+
+/**
+ * @swagger
+ * /api/v1/payments/authorize:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Authorize a payment hold for a booking
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               bookingId:
+ *                 type: string
+ *                 format: uuid
+ *               amount:
+ *                 type: number
+ *               paymentMethodId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Payment authorized
+ *       400:
+ *         description: Invalid request
+ */
+
+/**
+ * @swagger
+ * /api/v1/payments/{paymentId}/capture:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Capture a previously authorized payment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment captured
+ *       400:
+ *         description: Invalid request
+ */
+
+/**
+ * @swagger
+ * /api/v1/payments/{paymentId}/refund:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Refund a captured payment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               amount:
+ *                 type: number
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Refund processed
+ *       400:
+ *         description: Invalid request
+ */
+
+/**
+ * @swagger
+ * /api/v1/payments/{paymentId}:
+ *   get:
+ *     tags: [Payments]
+ *     summary: Get payment details
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment details returned
+ *       404:
+ *         description: Payment not found
+ */
+
+const router = Router();
+
+// Payment authorization flow
+router.post('/authorize', authenticate, authorizePayment);
+router.post('/:paymentId/capture', authenticate, capturePayment);
+router.post('/:paymentId/refund', authenticate, refundPayment);
+
+// Retrieval
+router.get('/:paymentId', authenticate, getPayment);
+router.get('/booking/:bookingId', authenticate, getBookingPayments);
+router.get('/', authenticate, getUserPayments);
+
+export default router;

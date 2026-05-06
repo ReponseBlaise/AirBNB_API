@@ -165,15 +165,36 @@
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 import { Router } from 'express';
-import { getAllBookings, getBookingById, createBooking, deleteBooking, updateBookingStatus } from '../controllers/bookings.controller.js';
-import { authenticate, requireGuest } from '../middlewares/auth.middleware.js';
+import {
+  getBooking,
+  getBookings,
+  instantBook,
+  requestBooking,
+  approveBooking,
+  declineBooking,
+  cancelBooking,
+  checkIn,
+  checkOut,
+} from '../controllers/bookings.controller';
+import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-router.get('/', getAllBookings);
-router.get('/:id', getBookingById);
-router.post('/', authenticate, requireGuest, createBooking);
-router.delete('/:id', authenticate, deleteBooking);
-router.patch('/:id/status', updateBookingStatus);
+// Public routes
+router.get('/:bookingId', authenticate, getBooking);
+
+// Guest routes
+router.post('/instant-book', authenticate, instantBook);
+router.post('/request', authenticate, requestBooking);
+router.put('/:bookingId/cancel', authenticate, cancelBooking);
+router.put('/:bookingId/check-in', authenticate, checkIn);
+router.put('/:bookingId/check-out', authenticate, checkOut);
+
+// Host routes
+router.put('/:bookingId/approve', authenticate, approveBooking);
+router.put('/:bookingId/decline', authenticate, declineBooking);
+
+// Both
+router.get('/', authenticate, getBookings);
 
 export default router;

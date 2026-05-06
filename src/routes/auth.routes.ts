@@ -629,16 +629,32 @@
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 import { Router } from 'express';
-import { authenticate } from '../middlewares/auth.middleware.js';
-import { changePassword, forgotPassword, getMe, login, register, resetPassword } from '../controllers/auth.controller.js';
+import { authenticate } from '../middlewares/auth.middleware';
+import {
+  register,
+  login,
+  verifyEmail,
+  refreshToken,
+  logout,
+  getMe,
+  changePassword,
+  forgotPassword,
+  resetPassword,
+} from '../controllers/auth.controller';
 
 const router = Router();
 
-router.post('/register', register);// register route should be public, no authentication required
+// Public routes
+router.post('/register', register);
 router.post('/login', login);
+router.get('/verify-email', verifyEmail);
+router.post('/refresh-token', refreshToken);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
+
+// Protected routes
 router.get('/me', authenticate, getMe);
 router.post('/change-password', authenticate, changePassword);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:token', resetPassword);
+router.post('/logout', authenticate, logout);
 
 export default router;

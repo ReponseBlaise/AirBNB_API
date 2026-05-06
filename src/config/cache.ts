@@ -1,9 +1,4 @@
-/**
- * Simple in-memory cache with TTL support
- * Usage: cache.set(key, value, ttlSeconds)
- *        cache.get(key)
- *        cache.clear(key) or cache.clearAll()
- */
+
 
 interface CacheEntry<T> {
   value: T;
