@@ -1,9 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
+import { z } from 'zod';
 import crypto from 'crypto';
-import { prisma } from '../config/prisma';
-import { createAccessToken, createRefreshToken } from '../utils/jwt';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService';
+import prisma from '../config/prisma.js';
+import { createAccessToken, createRefreshToken } from '../utils/jwt.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService.js';
 
 const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 const VERIFICATION_TOKEN_EXPIRY = 60 * 60 * 1000; // 1 hour
