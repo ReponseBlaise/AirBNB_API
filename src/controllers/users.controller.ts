@@ -24,7 +24,6 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
       include: {
         listings: { include: { _count: { select: { bookings: true } } } },
         bookings: { include: { listing: { select: { title: true, location: true } } } },
-        profile: true,
       },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -62,7 +61,6 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
         ...(password && { password: await bcrypt.hash(password, 10) }),
       },
     });
-
     if (role) invalidateStats();
     res.json(stripSensitiveUserFields(user));
   } catch (e) { next(e); }
@@ -78,8 +76,9 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
 
 export const getUserListings = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = String(req.params.id);
     const listings = await prisma.listing.findMany({
-      where: { hostId: req.params.id },
+      where: { hostId: userId },
       include: { _count: { select: { bookings: true } } },
     });
     res.json(listings);
@@ -88,8 +87,9 @@ export const getUserListings = async (req: Request, res: Response, next: NextFun
 
 export const getUserBookings = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = String(req.params.id);
     const bookings = await prisma.booking.findMany({
-      where: { guestId: req.params.id },
+      where: { guestId: userId },
       include: { listing: { select: { title: true, location: true } } },
     });
     res.json(bookings);

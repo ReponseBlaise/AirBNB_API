@@ -110,7 +110,7 @@
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 import { Router } from 'express';
-import { authenticate } from '../middlewares/auth.middleware';
+import { authenticate } from '../middlewares/auth.middleware.js';
 import {
   getProfile,
   updateProfile,
@@ -121,7 +121,7 @@ import {
   deletePaymentMethod,
   getUserReviews,
   getUserBookings,
-} from '../controllers/profile.controller';
+} from '../controllers/profile.controller.js';
 
 const router = Router();
 

@@ -6,8 +6,8 @@ import {
   flagMessage,
   deleteMessage,
   markThreadAsRead,
-} from '../controllers/messages.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+} from '../controllers/messages.controller.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 /**
  * @swagger

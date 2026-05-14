@@ -175,17 +175,17 @@ import {
   cancelBooking,
   checkIn,
   checkOut,
-} from '../controllers/bookings.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+} from '../controllers/bookings.controller.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
 // Public routes
 router.get('/:bookingId', authenticate, getBooking);
 
-// Guest routes
-router.post('/instant-book', authenticate, instantBook);
-router.post('/request', authenticate, requestBooking);
+// Guest routes (allow unauthenticated guest bookings)
+router.post('/instant-book', instantBook);
+router.post('/request', requestBooking);
 router.put('/:bookingId/cancel', authenticate, cancelBooking);
 router.put('/:bookingId/check-in', authenticate, checkIn);
 router.put('/:bookingId/check-out', authenticate, checkOut);

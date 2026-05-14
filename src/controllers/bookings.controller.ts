@@ -1,194 +1,263 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { NextFunction, Request, Response } from 'express';
+import bcrypt from 'bcrypt';
 import prisma from '../config/prisma.js';
-import { sendBookingConfirmation } from '../utils/emailService.js';
+import type { AuthRequest } from '../middlewares/auth.middleware.js';
 
-const uid = (req: Request) => (req as any).userId;
-const nights = (checkIn: Date, checkOut: Date) => Math.ceil((checkOut.getTime() - checkIn.getTime()) / 86400000);
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const validStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED'] as const;
 
-const calcPricing = (listing: any, numberOfNights: number) => {
-  const nightlyRate = listing.basePricePerNight;
-  const cleaningFee = listing.cleaningFee || 0;
-  const subtotal = nightlyRate * numberOfNights;
-  const serviceFeeGuest = subtotal * (listing.serviceFeeGuest || 0.15);
-  const tax = (subtotal + serviceFeeGuest) * 0.1;
-  return { nightlyRate, cleaningFee, subtotal, serviceFeeGuest, tax, totalCostGuest: subtotal + cleaningFee + serviceFeeGuest + tax, hostPayout: subtotal - subtotal * (listing.serviceFeeHost || 0.03) };
-};
+const getBookingIdFromParams = (req: Request): string | undefined =>
+  (req.params['bookingId'] ?? req.params['id']) as string | undefined;
 
-const blockCalendar = (listingId: string, checkIn: Date, numberOfNights: number, available: boolean) =>
-  Promise.all(Array.from({ length: numberOfNights }, (_, i) => {
-    const date = new Date(checkIn);
-    date.setDate(date.getDate() + i);
-    return prisma.listingAvailability.upsert({
-      where: { listingId_date: { listingId, date } },
-      create: { listingId, date, isAvailable: available, ...(available ? {} : { blockReason: 'booking' }) },
-      update: { isAvailable: available, blockReason: available ? null : 'booking' },
-    });
-  }));
+const calculateNights = (checkIn: Date, checkOut: Date) =>
+  Math.ceil((checkOut.getTime() - checkIn.getTime()) / MS_PER_DAY);
 
-export const instantBook = async (req: Request, res: Response, next: NextFunction) => {
+export const createBooking = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const guestId = uid(req);
-    const { listingId, checkInDate, checkOutDate, numberOfGuests } = req.body;
-    if (!listingId || !checkInDate || !checkOutDate) return res.status(400).json({ error: 'Missing required fields' });
+    const { listingId, checkIn, checkOut } = req.body;
 
-    const listing = await prisma.listing.findUnique({ where: { id: listingId }, include: { host: true } });
-    if (!listing) return res.status(404).json({ error: 'Listing not found' });
-    if (!listing.instantBook) return res.status(400).json({ error: 'Listing does not allow instant booking' });
-
-    const checkIn = new Date(checkInDate), checkOut = new Date(checkOutDate);
-    const numberOfNights = nights(checkIn, checkOut);
-
-    const unavailable = await prisma.listingAvailability.findMany({ where: { listingId, date: { gte: checkIn, lt: checkOut }, isAvailable: false } });
-    if (unavailable.length > 0) return res.status(400).json({ error: 'Dates are not available' });
-
-    const { nightlyRate, cleaningFee, subtotal, serviceFeeGuest, tax, totalCostGuest, hostPayout } = calcPricing(listing, numberOfNights);
-
-    const booking = await prisma.booking.create({
-      data: {
-        listingId, guestId, hostId: listing.hostId, checkInDate: checkIn, checkOutDate: checkOut,
-        numberOfGuests: numberOfGuests || 1, numberOfNights, status: 'CONFIRMED', instantBook: true,
-        nightlyRate, cleaningFee, serviceFeeGuest, tax, subtotalBeforeFees: subtotal, totalCostGuest,
-        totalPayoutHost: hostPayout, payoutDate: new Date(checkIn.getTime() + 86400000),
-        cancellationPolicy: listing.cancellationPolicy, paymentStatus: 'AUTHORIZED',
-      },
-    });
-
-    await blockCalendar(listingId, checkIn, numberOfNights, false);
-
-    const guest = await prisma.user.findUnique({ where: { id: guestId }, select: { email: true, name: true } });
-    sendBookingConfirmation(guest?.email || '', booking.id, guest?.name || 'Guest').catch(e => console.error('Email error:', e));
-
-    res.status(201).json(booking);
-  } catch (e) { next(e); }
-};
-
-export const requestBooking = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const guestId = uid(req);
-    const { listingId, checkInDate, checkOutDate, numberOfGuests } = req.body;
-
-    const listing = await prisma.listing.findUnique({ where: { id: listingId } });
-    if (!listing) return res.status(404).json({ error: 'Listing not found' });
-
-    const checkIn = new Date(checkInDate), checkOut = new Date(checkOutDate);
-    const numberOfNights = nights(checkIn, checkOut);
-    const { nightlyRate, cleaningFee, subtotal, serviceFeeGuest, tax, totalCostGuest, hostPayout } = calcPricing(listing, numberOfNights);
-
-    const booking = await prisma.booking.create({
-      data: {
-        listingId, guestId, hostId: listing.hostId, checkInDate: checkIn, checkOutDate: checkOut,
-        numberOfGuests: numberOfGuests || 1, numberOfNights, status: 'PENDING_APPROVAL', instantBook: false,
-        nightlyRate, cleaningFee, serviceFeeGuest, tax, subtotalBeforeFees: subtotal, totalCostGuest,
-        totalPayoutHost: hostPayout, cancellationPolicy: listing.cancellationPolicy, paymentStatus: 'PENDING',
-      },
-    });
-    res.status(201).json(booking);
-  } catch (e) { next(e); }
-};
-
-export const approveBooking = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { bookingId } = req.params;
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { listing: true, guest: true } });
-    if (!booking || booking.hostId !== uid(req)) return res.status(403).json({ error: 'Not authorized' });
-    if (booking.status !== 'PENDING_APPROVAL') return res.status(400).json({ error: 'Booking cannot be approved in current status' });
-
-    const updated = await prisma.booking.update({ where: { id: bookingId }, data: { status: 'CONFIRMED', paymentStatus: 'AUTHORIZED' } });
-    await blockCalendar(booking.listingId, new Date(booking.checkInDate), booking.numberOfNights, false);
-    res.json({ message: 'Booking approved', booking: updated });
-  } catch (e) { next(e); }
-};
-
-export const declineBooking = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { bookingId } = req.params;
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-    if (!booking || booking.hostId !== uid(req)) return res.status(403).json({ error: 'Not authorized' });
-
-    const updated = await prisma.booking.update({
-      where: { id: bookingId },
-      data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: 'host', cancellationReason: req.body.reason },
-    });
-    res.json({ message: 'Booking declined', booking: updated });
-  } catch (e) { next(e); }
-};
-
-export const cancelBooking = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = uid(req);
-    const { bookingId } = req.params;
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { listing: true } });
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    if (booking.guestId !== userId && booking.hostId !== userId) return res.status(403).json({ error: 'Not authorized' });
-
-    const daysUntilCheckIn = Math.ceil((booking.checkInDate.getTime() - Date.now()) / 86400000);
-    let refundAmount = 0;
-    switch (booking.cancellationPolicy) {
-      case 'FLEXIBLE':    if (daysUntilCheckIn >= 1) refundAmount = booking.totalCostGuest; break;
-      case 'MODERATE':    refundAmount = daysUntilCheckIn >= 7 ? booking.totalCostGuest : daysUntilCheckIn >= 1 ? booking.totalCostGuest * 0.5 : 0; break;
-      case 'STRICT':      refundAmount = daysUntilCheckIn >= 14 ? booking.totalCostGuest : daysUntilCheckIn >= 3 ? booking.totalCostGuest * 0.5 : 0; break;
-      case 'NON_REFUNDABLE': refundAmount = 0; break;
-      default:            refundAmount = booking.totalCostGuest;
+    if (!listingId || !checkIn || !checkOut) {
+      return res.status(400).json({ error: 'listingId, checkIn and checkOut are required' });
     }
 
-    const updated = await prisma.booking.update({
-      where: { id: bookingId },
-      data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: booking.guestId === userId ? 'guest' : 'host', cancellationReason: req.body.reason, refundAmount },
-    });
-    await blockCalendar(booking.listingId, new Date(booking.checkInDate), booking.numberOfNights, true);
-    res.json({ message: 'Booking cancelled', refundAmount, booking: updated });
-  } catch (e) { next(e); }
-};
+    const listing = await prisma.listing.findUnique({ where: { id: String(listingId) } });
+    if (!listing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
 
-export const getBooking = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = uid(req);
-    const booking = await prisma.booking.findUnique({
-      where: { id: req.params.bookingId },
+    const checkInDate = new Date(String(checkIn));
+    const checkOutDate = new Date(String(checkOut));
+    const nights = calculateNights(checkInDate, checkOutDate);
+
+    if (Number.isNaN(checkInDate.getTime()) || Number.isNaN(checkOutDate.getTime()) || nights <= 0) {
+      return res.status(400).json({ error: 'Invalid check-in/check-out dates' });
+    }
+
+    // Determine guestId: use authenticated user if present, otherwise use guest info
+    let guestId = req.userId
+
+    if (!guestId) {
+      const { guestName, guestEmail, guestPhone } = req.body
+      if (!guestEmail || !guestName) {
+        return res.status(400).json({ error: 'Guest name and email are required for guest bookings' })
+      }
+
+      // Try to find existing user by email
+      let user = await prisma.user.findUnique({ where: { email: String(guestEmail) } })
+      if (!user) {
+        // create a new guest user with generated username and random password
+        const emailLocal = (String(guestEmail).split('@')[0] ?? '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
+        const randomSuffix = Math.random().toString(36).slice(2, 8)
+        const username = `${emailLocal || 'guest'}_${randomSuffix}`
+        const rawPassword = Math.random().toString(36).slice(2, 10)
+        const hashed = await bcrypt.hash(rawPassword, 10)
+        user = await prisma.user.create({
+          data: {
+            name: String(guestName),
+            email: String(guestEmail),
+            username,
+            phone: guestPhone ? String(guestPhone) : '',
+            password: hashed,
+            role: 'GUEST',
+          },
+        })
+      }
+
+      guestId = user.id
+    }
+
+    const booking = await prisma.booking.create({
+      data: {
+        listingId: listing.id,
+        guestId,
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        totalPrice: listing.pricePerNight * nights,
+        status: 'PENDING',
+      },
       include: {
-        guest: { select: { id: true, name: true, avatar: true, email: true } },
-        host: { select: { id: true, name: true, avatar: true } },
-        listing: { select: { id: true, title: true, address: true } },
+        listing: true,
+        guest: { select: { id: true, name: true, email: true } },
       },
     });
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    if (booking.guestId !== userId && booking.hostId !== userId) return res.status(403).json({ error: 'Not authorized' });
-    res.json(booking);
-  } catch (e) { next(e); }
+
+    return res.status(201).json(booking);
+  } catch (error) {
+    return next(error);
+  }
 };
 
-export const getBookings = async (req: Request, res: Response, next: NextFunction) => {
+export const getMyBookings = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = uid(req);
-    const { type = 'guest', status } = req.query;
-    const where: any = { [type === 'host' ? 'hostId' : 'guestId']: userId, ...(status && { status }) };
+    if (!req.userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const role = String(req.query['role'] || 'guest');
+    const where =
+      role === 'host'
+        ? { listing: { hostId: req.userId } }
+        : { guestId: req.userId };
+
     const bookings = await prisma.booking.findMany({
       where,
       include: {
-        listing: { select: { id: true, title: true, address: true } },
-        guest: { select: { id: true, name: true, avatar: true } },
-        host: { select: { id: true, name: true, avatar: true } },
+        listing: true,
+        guest: { select: { id: true, name: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(bookings);
-  } catch (e) { next(e); }
+
+    return res.json(bookings);
+  } catch (error) {
+    return next(error);
+  }
 };
 
-export const checkIn = async (req: Request, res: Response, next: NextFunction) => {
+export const getBookingById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = uid(req);
-    const booking = await prisma.booking.findUnique({ where: { id: req.params.bookingId } });
-    if (!booking || (booking.guestId !== userId && booking.hostId !== userId)) return res.status(403).json({ error: 'Not authorized' });
-    res.json(await prisma.booking.update({ where: { id: req.params.bookingId }, data: { status: 'CHECKED_IN', checkedInAt: new Date(), paymentStatus: 'CAPTURED' } }));
-  } catch (e) { next(e); }
+    if (!req.userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const bookingId = getBookingIdFromParams(req);
+    if (!bookingId) {
+      return res.status(400).json({ error: 'bookingId is required' });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        listing: true,
+        guest: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const listing = await prisma.listing.findUnique({ where: { id: booking.listingId }, select: { hostId: true } });
+    const isAllowed =
+      booking.guestId === req.userId ||
+      listing?.hostId === req.userId ||
+      req.role === 'ADMIN';
+
+    if (!isAllowed) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    return res.json(booking);
+  } catch (error) {
+    return next(error);
+  }
 };
 
-export const checkOut = async (req: Request, res: Response, next: NextFunction) => {
+export const updateBookingStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = uid(req);
-    const booking = await prisma.booking.findUnique({ where: { id: req.params.bookingId } });
-    if (!booking || (booking.guestId !== userId && booking.hostId !== userId)) return res.status(403).json({ error: 'Not authorized' });
-    res.json(await prisma.booking.update({ where: { id: req.params.bookingId }, data: { status: 'CHECKED_OUT', checkedOutAt: new Date() } }));
-  } catch (e) { next(e); }
+    if (!req.userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const bookingId = getBookingIdFromParams(req);
+    if (!bookingId) {
+      return res.status(400).json({ error: 'bookingId is required' });
+    }
+
+    const { status } = req.body;
+    if (!validStatuses.includes(String(status) as (typeof validStatuses)[number])) {
+      return res.status(400).json({ error: 'Invalid booking status' });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { listing: true },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const listing = await prisma.listing.findUnique({ where: { id: booking.listingId }, select: { hostId: true } });
+    const isAllowed =
+      booking.guestId === req.userId ||
+      listing?.hostId === req.userId ||
+      req.role === 'ADMIN';
+
+    if (!isAllowed) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: String(status) as (typeof validStatuses)[number] },
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const deleteBooking = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const bookingId = getBookingIdFromParams(req);
+    if (!bookingId) {
+      return res.status(400).json({ error: 'bookingId is required' });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { listing: true },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const listing = await prisma.listing.findUnique({ where: { id: booking.listingId }, select: { hostId: true } });
+    const isAllowed =
+      booking.guestId === req.userId ||
+      listing?.hostId === req.userId ||
+      req.role === 'ADMIN';
+
+    if (!isAllowed) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    await prisma.booking.delete({ where: { id: booking.id } });
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getBooking = getBookingById;
+export const getBookings = getMyBookings;
+export const instantBook = createBooking;
+export const requestBooking = createBooking;
+export const cancelBooking = deleteBooking;
+
+export const approveBooking = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  req.body = { ...req.body, status: 'CONFIRMED' };
+  return updateBookingStatus(req, res, next);
+};
+
+export const declineBooking = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  req.body = { ...req.body, status: 'CANCELLED' };
+  return updateBookingStatus(req, res, next);
+};
+
+export const checkIn = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  req.body = { ...req.body, status: 'CONFIRMED' };
+  return updateBookingStatus(req, res, next);
+};
+
+export const checkOut = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  req.body = { ...req.body, status: 'CONFIRMED' };
+  return updateBookingStatus(req, res, next);
 };

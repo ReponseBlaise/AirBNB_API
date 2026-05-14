@@ -8,8 +8,8 @@ import {
   getUserReviewsAsAuthor,
   getUserReviewsAsTarget,
   getListingReviews,
-} from '../controllers/reviews.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+} from '../controllers/reviews.controller.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 const reviewsRouter = Router();
 

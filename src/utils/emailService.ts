@@ -15,7 +15,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
 
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'noreply@airbnb-clone.com',
+      from: process.env.EMAIL_FROM || 'noreply@hafiproperties.com',
       to: email,
       subject: 'Verify Your Airbnb Account',
       html: `
@@ -36,9 +36,9 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
 
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'noreply@airbnb-clone.com',
+      from: process.env.EMAIL_FROM || 'noreply@hafiproperties.com',
       to: email,
-      subject: 'Reset Your Airbnb Password',
+      subject: 'Reset Your HafiProprties Password',
       html: `
         <h2>Password Reset Request</h2>
         <p>Click the link below to reset your password:</p>
@@ -55,7 +55,7 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
 export const sendBookingConfirmation = async (email: string, bookingId: string, guestName: string) => {
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'noreply@airbnb-clone.com',
+      from: process.env.EMAIL_FROM || 'noreply@hafiproperties.com',
       to: email,
       subject: `Booking Confirmation - Reference #${bookingId}`,
       html: `

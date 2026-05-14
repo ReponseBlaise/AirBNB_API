@@ -1,9 +1,20 @@
 import { v2 as cloudinary } from 'cloudinary';
 
+const CLOUD_NAME = process.env['CLOUDINARY_CLOUD_NAME'] ?? '';
+const API_KEY = process.env['CLOUDINARY_API_KEY'] ?? '';
+const API_SECRET = process.env['CLOUDINARY_API_SECRET'] ?? '';
+
+if (!CLOUD_NAME || !API_KEY || !API_SECRET) {
+  // Throw early so the developer sees a clear message during startup
+  throw new Error(
+    'Cloudinary credentials are missing. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET in your environment.'
+  );
+}
+
 cloudinary.config({
-  cloud_name: process.env['CLOUDINARY_CLOUD_NAME'] ?? '',
-  api_key: process.env['CLOUDINARY_API_KEY'] ?? '',
-  api_secret: process.env['CLOUDINARY_API_SECRET'] ?? '',
+  cloud_name: CLOUD_NAME,
+  api_key: API_KEY,
+  api_secret: API_SECRET,
 });
 
 export function uploadToCloudinary(buffer: Buffer, folder: string): Promise<{ url: string; publicId: string }> {

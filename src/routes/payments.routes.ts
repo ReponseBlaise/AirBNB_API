@@ -6,8 +6,8 @@ import {
   getPayment,
   getBookingPayments,
   getUserPayments,
-} from '../controllers/payments.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+} from '../controllers/payments.controller.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 /**
  * @swagger

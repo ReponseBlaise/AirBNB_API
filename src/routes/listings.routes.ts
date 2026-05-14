@@ -259,7 +259,7 @@
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 import { Router } from 'express';
-import { authenticate } from '../middlewares/auth.middleware';
+import { authenticate } from '../middlewares/auth.middleware.js';
 import {
   getListings,
   getListingById,
@@ -272,7 +272,7 @@ import {
   getAvailability,
   getHostListings,
   deleteListing,
-} from '../controllers/listings.controller';
+} from '../controllers/listings.controller.js';
 
 const router = Router();
 

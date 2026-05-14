@@ -6,14 +6,97 @@ datasource db {
   provider = "postgresql"
 }
 
-// ============================================================================
-// ENUMS
-// ============================================================================
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String   @unique
+  username  String   @unique
+  phone     String
+  password  String
+  role      Role     @default(GUEST)
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  avatar    String?    
+  avatarPublicId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-enum UserRole {
+  listings  Listing[]
+  bookings  Booking[]
+  reviews   Review[]
+  @@index([name])
+  @@index([role])
+}
+
+model Listing {
+  id             String    @id @default(uuid())
+  title          String
+  description    String    @default("")
+  pricePerNight  Float
+  guest          Int
+  location       String
+  type           ListingType
+  amenities      String[]
+  hostId         String
+  host           User     @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  bookings       Booking[]
+  photos         ListingPhoto[]
+  reviews        Review[]
+  @@index([location])
+  @@index([pricePerNight])
+  @@index([type])
+  @@index([hostId])
+  @@index([type, location])
+
+}
+
+model Booking {
+  id         String    @id @default(uuid())
+  checkIn    DateTime
+  checkOut   DateTime
+  totalPrice Float
+  status     BookingStatus @default(PENDING)
+  listingId  String
+  guestId    String
+  createdAt  DateTime      @default(now())
+
+  listing    Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  guest      User    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  @@index([guestId])
+  @@index([listingId])
+  @@index([listingId, checkIn, checkOut])
+  @@index([status])
+}
+
+model ListingPhoto {
+  id         String    @id @default(uuid())
+  url        String
+  publicId   String
+  listingId  String
+  listing    Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id        String    @id @default(uuid())
+  rating    Int
+  comment   String
+  userId    String
+  listingId String
+  user      User     @relation(fields: [userId], references: [id])
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([listingId])
+}
+
+enum Role {
   ADMIN
-  HOST
   GUEST
+  HOST
 }
 
 enum ListingType {
@@ -21,537 +104,10 @@ enum ListingType {
   HOUSE
   VILLA
   CABIN
-  ROOM
-  TOWNHOUSE
-  CONDO
-}
-
-enum ListingStatus {
-  DRAFT
-  ACTIVE
-  SUSPENDED
-  ARCHIVED
 }
 
 enum BookingStatus {
-  PENDING_APPROVAL
-  CONFIRMED
-  CHECKED_IN
-  CHECKED_OUT
-  CANCELLED
-  DISPUTED
-}
-
-enum CancellationPolicy {
-  FLEXIBLE
-  MODERATE
-  STRICT
-  NON_REFUNDABLE
-  LONG_TERM
-}
-
-enum PaymentMethod {
-  CREDIT_CARD
-  DEBIT_CARD
-  PAYPAL
-  BANK_TRANSFER
-  APPLE_PAY
-  GOOGLE_PAY
-}
-
-enum PaymentStatus {
   PENDING
-  AUTHORIZED
-  CAPTURED
-  FAILED
-  REFUNDED
-  DISPUTED
-}
-
-enum MessageType {
-  TEXT
-  IMAGE
-  SYSTEM
-}
-
-enum AdminActionType {
-  SUSPEND_USER
-  BAN_USER
-  SUSPEND_LISTING
-  MANUAL_REFUND
-  COUPON_CREDIT
-  DISPUTE_RESOLUTION
-}
-
-// ============================================================================
-// CORE USER & AUTH
-// ============================================================================
-
-model User {
-  id                        String          @id @default(uuid())
-  name                      String
-  email                     String          @unique
-  emailVerified             Boolean         @default(false)
-  emailVerificationToken    String?
-  emailVerificationExpiry   DateTime?
-  phone                     String?
-  phoneVerified             Boolean         @default(false)
-  password                  String
-  passwordResetToken        String?
-  passwordResetExpiry       DateTime?
-  role                      UserRole        @default(GUEST)
-  preferredRole             UserRole        @default(GUEST) // For guest/host switching
-  avatar                    String?
-  avatarPublicId            String?
-  bio                       String?
-  languagesSpoken           String[]        @default([])
-  notificationPreferences   Json            @default("{\"email\":true,\"push\":true,\"sms\":false}")
-  
-  // KYC & Verification
-  identityVerified          Boolean         @default(false)
-  identityVerificationId    String?
-  identityVerificationDate  DateTime?
-  governmentId              String?
-  governmentIdPublicId      String?
-  
-  // Host-specific
-  isSuperhost               Boolean         @default(false)
-  superHostStatus           DateTime?
-  hostResponseRate          Float           @default(0)
-  hostResponseTime          Int?            // minutes
-  hostCancellationRate      Float           @default(0)
-  
-  // MFA
-  mfaEnabled                Boolean         @default(false)
-  mfaMethod                 String?         // sms, totp
-  mfaSecret                 String?         // for TOTP
-  mfaPhone                  String?
-  
-  // Financials
-  totalEarnings             Float           @default(0)
-  totalSpent                Float           @default(0)
-  
-  createdAt                 DateTime        @default(now())
-  updatedAt                 DateTime        @updatedAt
-  
-  // Relations
-  profile                   Profile?
-  listings                  Listing[]
-  bookingsAsGuest           Booking[]       @relation("GuestBookings")
-  bookingsAsHost            Booking[]       @relation("HostBookings")
-  guestReviews              Review[]        @relation("GuestReviews")
-  hostReviews               Review[]        @relation("HostReviews")
-  paymentMethods            PaymentMethod_[]
-  sessions                  Session[]
-  messages                  Message[]
-  messageThreads            MessageThread[] @relation("Participants")
-  adminActions              AdminAction[]
-  auditLogs                 AuditLog[]
-  
-  @@index([email])
-  @@index([role])
-  @@index([isSuperhost])
-  @@index([identityVerified])
-}
-
-model Session {
-  id        String    @id @default(uuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  device    String    // web, ios, android
-  ipAddress String?
-  userAgent String?
-  token     String    @unique
-  expiresAt DateTime
-  createdAt DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([expiresAt])
-}
-
-model Profile {
-  id              String    @id @default(uuid())
-  userId          String    @unique
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  website         String?
-  country         String?
-  joinedYear      Int?
-  responseRate    Float?
-  responseTime    Int?     // minutes
-  reviewCount     Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-}
-
-// ============================================================================
-// PAYMENT MANAGEMENT
-// ============================================================================
-
-model PaymentMethod_ {
-  id              String    @id @default(uuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  methodType      PaymentMethod
-  stripeTokenId   String    // Tokenized by Stripe
-  last4Digits     String?
-  expiryMonth     Int?
-  expiryYear      Int?
-  isDefault       Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  @@unique([userId, stripeTokenId])
-  @@index([userId])
-}
-
-// ============================================================================
-// LISTINGS
-// ============================================================================
-
-model Listing {
-  id                    String            @id @default(uuid())
-  hostId                String
-  host                  User              @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  
-  title                 String
-  description           String
-  address               String
-  latitude              Float
-  longitude             Float
-  listingType           ListingType
-  status                ListingStatus     @default(DRAFT)
-  
-  // Property Details
-  bedrooms              Int
-  beds                  Int
-  bathrooms             Int
-  maxGuests             Int
-  squareFeet            Int?
-  
-  // Amenities & Features
-  amenities             String[]          @default([])
-  houseRules            String[]          @default([])
-  checkInMethod         String            // keypad, lockbox, host, smart_lock
-  checkOutTime          String            @default("11:00")
-  checkInTime           String            @default("15:00")
-  
-  // Pricing
-  basePricePerNight     Float
-  weekendPrice          Float?
-  weeklyDiscount        Float?            // percentage
-  monthlyDiscount       Float?            // percentage
-  cleaningFee           Float             @default(0)
-  extraGuestFee         Float?
-  serviceFeeGuest       Float             @default(0.15) // 15% default
-  serviceFeeHost        Float             @default(0.03)  // 3% default
-  
-  // Cancellation & Rules
-  cancellationPolicy    CancellationPolicy @default(MODERATE)
-  minNightStay          Int               @default(1)
-  maxNightStay          Int?
-  instantBook           Boolean           @default(false)
-  
-  // Ratings & Reviews
-  averageRating         Float             @default(0)
-  totalReviews          Int               @default(0)
-  
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  publishedAt           DateTime?
-  
-  // Relations
-  photos                ListingPhoto[]
-  bookings              Booking[]
-  reviews               Review[]
-  availability          ListingAvailability[]
-  messages              MessageThread[]
-  
-  @@index([hostId])
-  @@index([status])
-  @@index([latitude, longitude])
-  @@index([listingType])
-  @@index([basePricePerNight])
-  @@index([averageRating])
-  @@index([createdAt])
-}
-
-model ListingPhoto {
-  id            String    @id @default(uuid())
-  listingId     String
-  listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  url           String
-  publicId      String
-  displayOrder  Int
-  createdAt     DateTime  @default(now())
-  
-  @@index([listingId])
-}
-
-model ListingAvailability {
-  id              String    @id @default(uuid())
-  listingId       String
-  listing         Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  date            DateTime  @db.Date
-  isAvailable     Boolean   @default(true)
-  blockReason     String?   // host_blocked, booking, maintenance
-  minNightStay    Int?
-  maxNightStay    Int?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  @@unique([listingId, date])
-  @@index([listingId, date])
-}
-
-// ============================================================================
-// BOOKINGS & PAYMENTS
-// ============================================================================
-
-model Booking {
-  id                    String          @id @default(uuid())
-  listingId             String
-  listing               Listing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  guestId               String
-  guest                 User            @relation("GuestBookings", fields: [guestId], references: [id], onDelete: Cascade)
-  hostId                String
-  host                  User            @relation("HostBookings", fields: [hostId], references: [id], onDelete: Cascade)
-  
-  checkInDate           DateTime        @db.Date
-  checkOutDate          DateTime        @db.Date
-  numberOfGuests        Int
-  numberOfNights        Int
-  
-  status                BookingStatus   @default(PENDING_APPROVAL)
-  instantBook           Boolean         @default(false)
-  
-  // Pricing Breakdown
-  nightlyRate           Float
-  cleaningFee           Float           @default(0)
-  serviceFeeGuest       Float           @default(0)
-  tax                   Float           @default(0)
-  subtotalBeforeFees    Float
-  totalCostGuest        Float
-  
-  // Host Payout
-  totalPayoutHost       Float
-  payoutDate            DateTime?
-  payoutStatus          String?         @default("scheduled")
-  
-  // Cancellation
-  cancellationPolicy    CancellationPolicy
-  cancelledAt           DateTime?
-  cancelledBy           String?         // guest, host
-  cancellationReason    String?
-  refundAmount          Float?
-  
-  // Payment Hold
-  paymentHoldId         String?
-  paymentStatus         PaymentStatus   @default(PENDING)
-  
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-  checkedInAt           DateTime?
-  checkedOutAt          DateTime?
-  
-  // Relations
-  payment               Payment?
-  reviews               Review[]
-  messages              MessageThread?
-  disputes              Dispute[]
-  
-  @@index([guestId])
-  @@index([hostId])
-  @@index([listingId])
-  @@index([status])
-  @@index([checkInDate, checkOutDate])
-  @@index([createdAt])
-}
-
-model Payment {
-  id                    String        @id @default(uuid())
-  bookingId             String        @unique
-  booking               Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  amount                Float
-  currency              String        @default("USD")
-  paymentMethodId       String?
-  stripePaymentIntentId String?
-  status                PaymentStatus @default(PENDING)
-  
-  authorizedAt          DateTime?
-  capturedAt            DateTime?
-  failedAt              DateTime?
-  failureReason         String?
-  
-  refundAmount          Float?        @default(0)
-  refundedAt            DateTime?
-  refundStripeId        String?
-  
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
-  
-  @@index([bookingId])
-  @@index([stripePaymentIntentId])
-}
-
-// ============================================================================
-// MESSAGING
-// ============================================================================
-
-model MessageThread {
-  id            String      @id @default(uuid())
-  listingId     String?
-  listing       Listing?    @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  bookingId     String?     @unique
-  booking       Booking?    @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  
-  participants  User[]      @relation("Participants")
-  messages      Message[]
-  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  @@index([listingId])
-  @@index([bookingId])
-}
-
-model Message {
-  id              String        @id @default(uuid())
-  threadId        String
-  thread          MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  senderId        String
-  sender          User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  
-  messageType     MessageType   @default(TEXT)
-  content         String?
-  imageUrl        String?
-  imagePublicId   String?
-  
-  flagged         Boolean       @default(false)
-  flagReason      String?       // external_contact, suspicious, etc.
-  
-  createdAt       DateTime      @default(now())
-  
-  @@index([threadId])
-  @@index([senderId])
-}
-
-// ============================================================================
-// REVIEWS & RATINGS
-// ============================================================================
-
-model Review {
-  id                    String    @id @default(uuid())
-  bookingId             String    @unique
-  booking               Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  // Guest reviewing Host/Listing
-  guestId               String?
-  guest                 User?     @relation("GuestReviews", fields: [guestId], references: [id], onDelete: SetNull)
-  listingId             String?
-  listing               Listing?  @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  
-  // Host reviewing Guest
-  hostId                String?
-  host                  User?     @relation("HostReviews", fields: [hostId], references: [id], onDelete: SetNull)
-  
-  isGuestReview         Boolean   @default(true)
-  
-  // Guest Review of Listing
-  overallRating         Int?      // 1-5
-  cleanlinessRating     Int?      // 1-5
-  accuracyRating        Int?      // 1-5
-  checkInRating         Int?      // 1-5
-  communicationRating   Int?      // 1-5
-  locationRating        Int?      // 1-5
-  valueRating           Int?      // 1-5
-  
-  // Host Review of Guest (simple)
-  hostOverallRating     Int?      // 1-5
-  
-  comment               String?
-  isFlagged             Boolean   @default(false)
-  flagReason            String?
-  isPublished           Boolean   @default(false)
-  publishedAt           DateTime?
-  
-  hostResponse          String?
-  hostResponseAt        DateTime?
-  
-  createdAt             DateTime  @default(now())
-  submittedAt           DateTime?
-  
-  @@index([bookingId])
-  @@index([guestId])
-  @@index([hostId])
-  @@index([listingId])
-  @@index([isPublished])
-}
-
-// ============================================================================
-// DISPUTES & SAFETY
-// ============================================================================
-
-model Dispute {
-  id                String        @id @default(uuid())
-  bookingId         String
-  booking           Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  initiatedBy       String        // guest, host
-  reason            String        // property_damage, safety_concern, refund_dispute
-  description       String
-  
-  status            String        @default("open") // open, under_review, resolved
-  resolution        String?
-  resolvedAmount    Float?
-  resolvedAt        DateTime?
-  
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
-  @@index([bookingId])
-  @@index([status])
-}
-
-// ============================================================================
-// ADMIN & AUDIT
-// ============================================================================
-
-model AdminAction {
-  id                String            @id @default(uuid())
-  adminUserId       String
-  admin             User              @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
-  
-  actionType        AdminActionType
-  targetUserId      String?           // user being acted upon
-  targetListingId   String?
-  targetBookingId   String?
-  
-  reason            String
-  details           Json
-  
-  createdAt         DateTime          @default(now())
-  
-  @@index([adminUserId])
-  @@index([actionType])
-}
-
-model AuditLog {
-  id                String    @id @default(uuid())
-  userId            String?
-  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  action            String    // created_booking, updated_listing, etc.
-  entityType        String    // booking, listing, user, etc.
-  entityId          String
-  changes           Json      // before/after state
-  
-  ipAddress         String?
-  userAgent         String?
-  
-  createdAt         DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([action])
-  @@index([createdAt])
+  CONFIRMED
+  CANCELLED
 }

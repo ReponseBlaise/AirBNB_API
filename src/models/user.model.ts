@@ -1,10 +1,16 @@
+export type Role = 'ADMIN' | 'GUEST' | 'HOST';
+
 export interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
+  username: string;
+  phone: string;
+  password: string;
+  role: Role;
+  resetToken?: string | null;
+  resetTokenExpiry?: Date | null;
+  avatar?: string | null;
+  avatarPublicId?: string | null;
+  createdAt: Date;
 }
-
-export const users: User[] = [
-  { id: 1, name: 'Alice', email: 'blaise@klab.rw' },
-  { id: 2, name: 'Bob', email: 'Kagabo@fablab.com' }
-];

@@ -629,7 +629,7 @@
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 import { Router } from 'express';
-import { authenticate } from '../middlewares/auth.middleware';
+import { authenticate } from '../middlewares/auth.middleware.js';
 import {
   register,
   login,
@@ -640,7 +640,7 @@ import {
   changePassword,
   forgotPassword,
   resetPassword,
-} from '../controllers/auth.controller';
+} from '../controllers/auth.controller.js';
 
 const router = Router();
 

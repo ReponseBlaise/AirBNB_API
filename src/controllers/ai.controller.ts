@@ -32,9 +32,29 @@ type AiRuntime = {
 
 let aiRuntimePromise: Promise<AiRuntime> | null = null;
 
+function toPlainText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (value && typeof value === 'object') {
+    const maybeContent = (value as { content?: unknown }).content;
+    if (typeof maybeContent === 'string') {
+      return maybeContent;
+    }
+  }
+
+  return String(value);
+}
+
 async function loadAiRuntime(): Promise<AiRuntime> {
   if (!aiRuntimePromise) {
     aiRuntimePromise = (async () => {
+      const apiKey = process.env['GROQ_API_KEY'] || '';
+      if (!apiKey) {
+        throw new Error('GROQ_API_KEY is missing. Set it in your environment to enable AI features.');
+      }
+
       const [groqModule, promptsModule, parsersModule, historyModule, runnableModule] = await Promise.all([
         import("@langchain/groq"),
         import("@langchain/core/prompts"),
@@ -50,7 +70,7 @@ async function loadAiRuntime(): Promise<AiRuntime> {
       const { RunnableWithMessageHistory } = runnableModule;
 
       const llm = new ChatGroq({
-        apiKey: process.env["GROQ_API_KEY"] || "",
+        apiKey,
         model: "llama-3.3-70b-versatile",
         temperature: 0.7,
       });
@@ -220,7 +240,7 @@ export async function chat(req: Request, res: Response) {
         location: true,
         pricePerNight: true,
         type: true,
-        guests: true,
+        guest: true,
         amenities: true,
       },
     });
@@ -228,7 +248,7 @@ export async function chat(req: Request, res: Response) {
     const listingsContext = listings
       .map(
         (listing: (typeof listings)[number]) =>
-          `- ${listing.title} in ${listing.location}: $${listing.pricePerNight}/night, ${listing.type}, up to ${listing.guests} guests, amenities: ${listing.amenities.join(", ")}`
+          `- ${listing.title} in ${listing.location}: $${listing.pricePerNight}/night, ${listing.type}, up to ${listing.guest} guests, amenities: ${listing.amenities.join(", ")}`
       )
       .join("\n");
 
@@ -238,9 +258,9 @@ export async function chat(req: Request, res: Response) {
       { configurable: { sessionId } }
     );
 
-    res.json({ reply, sessionId });
+    res.json({ reply: toPlainText(reply), sessionId });
   } catch (error) {
     console.error("Chat error:", error);
-    res.status(500).json({ error: "Failed to process chat message" });
+    res.status(500).json({ error: error instanceof Error ? error.message : "Failed to process chat message" });
   }
 }

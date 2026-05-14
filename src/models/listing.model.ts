@@ -1,11 +1,16 @@
+import { ListingType } from '@prisma/client';
+
 export interface Listing {
-  id: number;
+  id: string;
   title: string;
-  price: number;
+  description: string;
+  pricePerNight: number;
+  guest: number;
   location: string;
+  type: ListingType;
+  amenities: string[];
+  hostId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export const listings: Listing[] = [
-  { id: 1, title: 'Apartment', price: 50, location: 'Kigali' },
-  { id: 2, title: 'House', price: 100, location: 'Musanze' }
-];

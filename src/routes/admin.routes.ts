@@ -9,8 +9,8 @@ import {
   resolveDispute,
   getAdminStats,
   requireAdmin,
-} from '../controllers/admin.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+} from '../controllers/admin.controller.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 /**
  * @swagger
