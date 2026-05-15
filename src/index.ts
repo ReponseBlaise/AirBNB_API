@@ -10,6 +10,7 @@ import compression from 'compression';
 import { generalLimiter, strictLimiter, authLimiter } from './middlewares/rateLimiter.js';
 import morgan from 'morgan';
 import { deprecateV1 } from './middlewares/deprecation.middleware.js';
+import path from 'path';
 
 const app = express();
 
@@ -27,6 +28,9 @@ app.use(express.json());
 
 // Performance middleware
 app.use(compression());
+
+// Serve local uploads when running without Cloudinary
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
 // Request logging
 app.use(process.env['NODE_ENV'] === 'production' ? morgan('combined') : morgan('dev'));

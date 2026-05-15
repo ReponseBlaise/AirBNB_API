@@ -13,50 +13,66 @@ type UserSeed = {
 
 const users: UserSeed[] = [
   {
-    name: 'Admin User',
-    email: 'admin@bookingapp.com',
-    username: 'admin',
-    phone: '+15550000001',
+    name: 'Aline Mukamana',
+    email: 'admin@boking.rw',
+    username: 'admin_rwanda',
+    phone: '+250788000001',
     role: 'ADMIN',
     password: 'Admin@123456',
   },
   {
-    name: 'Host One',
-    email: 'host1@bookingapp.com',
-    username: 'hostone',
-    phone: '+15550000002',
+    name: 'Immaculée Mukamana',
+    email: 'ops-admin@boking.rw',
+    username: 'adminops',
+    phone: '+250788000008',
+    role: 'ADMIN',
+    password: 'Admin@123456',
+  },
+  {
+    name: 'Emmanuel Nshimiyimana',
+    email: 'host1@boking.rw',
+    username: 'hostkigali',
+    phone: '+250788000002',
     role: 'HOST',
     password: 'Host@123456',
   },
   {
-    name: 'Host Two',
-    email: 'host2@bookingapp.com',
-    username: 'hosttwo',
-    phone: '+15550000003',
+    name: 'Claire Uwase',
+    email: 'host2@boking.rw',
+    username: 'hostrubavu',
+    phone: '+250788000003',
     role: 'HOST',
     password: 'Host@123456',
   },
   {
-    name: 'Guest One',
-    email: 'guest1@bookingapp.com',
-    username: 'guestone',
-    phone: '+15550000004',
+    name: 'Jean Bosco Harerimana',
+    email: 'guest1@boking.rw',
+    username: 'guestkigali',
+    phone: '+250788000004',
     role: 'GUEST',
     password: 'Guest@123456',
   },
   {
-    name: 'Guest Two',
-    email: 'guest2@bookingapp.com',
-    username: 'guesttwo',
-    phone: '+15550000005',
+    name: 'Odette Mukandayisenga',
+    email: 'guest2@boking.rw',
+    username: 'guesthuye',
+    phone: '+250788000005',
     role: 'GUEST',
     password: 'Guest@123456',
   },
   {
-    name: 'Guest Three',
-    email: 'guest3@bookingapp.com',
-    username: 'guestthree',
-    phone: '+15550000006',
+    name: 'Patrick Bizimana',
+    email: 'guest3@boking.rw',
+    username: 'guestmusanze',
+    phone: '+250788000006',
+    role: 'GUEST',
+    password: 'Guest@123456',
+  },
+  {
+    name: 'Sandrine Uwineza',
+    email: 'guest4@boking.rw',
+    username: 'guestkibuye',
+    phone: '+250788000007',
     role: 'GUEST',
     password: 'Guest@123456',
   },
@@ -90,83 +106,84 @@ async function main() {
     createdUsers.set(user.username, createdUser);
   }
 
-  const hostOne = createdUsers.get('hostone');
-  const hostTwo = createdUsers.get('hosttwo');
-  const guestOne = createdUsers.get('guestone');
-  const guestTwo = createdUsers.get('guesttwo');
-  const guestThree = createdUsers.get('guestthree');
+  const hostOne = createdUsers.get('hostkigali');
+  const hostTwo = createdUsers.get('hostrubavu');
+  const guestOne = createdUsers.get('guestkigali');
+  const guestTwo = createdUsers.get('guesthuye');
+  const guestThree = createdUsers.get('guestmusanze');
+  const guestFour = createdUsers.get('guestkibuye');
 
-  if (!hostOne || !hostTwo || !guestOne || !guestTwo || !guestThree) {
+  if (!hostOne || !hostTwo || !guestOne || !guestTwo || !guestThree || !guestFour) {
     throw new Error('Failed to create seed users');
   }
 
   const listings = [
     {
-      title: 'Downtown Loft',
-      description: 'A bright downtown loft with fast WiFi, walkable dining, and an easy transit connection.',
-      pricePerNight: 145,
+      title: 'Kigali City Loft',
+      description: 'A bright city loft in Kigali with fast WiFi, a quiet workspace, and easy access to dining in Kimihurura and Kacyiru.',
+      pricePerNight: 120,
       guest: 4,
-      location: 'New York, USA',
+      location: 'Kigali, Rwanda',
       type: 'APARTMENT' as const,
       amenities: ['WiFi', 'Air conditioning', 'Kitchen', 'Workspace'],
       hostId: hostOne.id,
     },
     {
-      title: 'Lakeview Family House',
-      description: 'A spacious family house overlooking the lake, with a quiet backyard and room for everyone.',
-      pricePerNight: 220,
+      title: 'Lake Kivu Family House',
+      description: 'A spacious family house overlooking Lake Kivu in Rubavu with a quiet backyard, warm interiors, and room for a weekend stay.',
+      pricePerNight: 185,
       guest: 6,
-      location: 'Chicago, USA',
+      location: 'Rubavu, Rwanda',
       type: 'HOUSE' as const,
       amenities: ['Parking', 'Washer', 'Dryer', 'Backyard'],
       hostId: hostOne.id,
     },
     {
-      title: 'Mountain Escape Cabin',
-      description: 'A cozy mountain cabin with a fireplace, hot tub, and peaceful views for a reset getaway.',
-      pricePerNight: 175,
+      title: 'Musanze Mountain Cabin',
+      description: 'A cozy cabin near Volcanoes National Park in Musanze with a fireplace, tea terrace, and peaceful mountain views.',
+      pricePerNight: 160,
       guest: 5,
-      location: 'Denver, USA',
+      location: 'Musanze, Rwanda',
       type: 'CABIN' as const,
       amenities: ['Fireplace', 'Hot tub', 'Mountain view', 'Kitchen'],
       hostId: hostTwo.id,
     },
     {
-      title: 'Ocean View Villa',
-      description: 'A modern villa with panoramic ocean views, a private patio, and plenty of space to relax.',
-      pricePerNight: 380,
+      title: 'Rubavu Hills Villa',
+      description: 'A modern villa above the Lake Kivu shoreline in Rubavu with lake views, a private patio, and space for a relaxed family stay.',
+      pricePerNight: 290,
       guest: 8,
-      location: 'San Diego, USA',
+      location: 'Rubavu, Rwanda',
       type: 'VILLA' as const,
       amenities: ['Pool', 'Ocean view', 'Private patio', 'Parking'],
       hostId: hostTwo.id,
     },
     {
-      title: 'Brooklyn Brownstone Suite',
-      description: 'An elegant brownstone suite with character details, a dedicated workspace, and city convenience.',
-      pricePerNight: 190,
+      title: 'Huye Heritage Suite',
+      description: 'An elegant suite in Huye with heritage character, a dedicated workspace, and easy access to university life around the district.',
+      pricePerNight: 145,
       guest: 3,
-      location: 'Brooklyn, New York, USA',
+      location: 'Huye, Rwanda',
       type: 'APARTMENT' as const,
       amenities: ['WiFi', 'Washer', 'Dedicated workspace', 'Balcony'],
       hostId: hostOne.id,
     },
     {
-      title: 'Countryside Orchard House',
-      description: 'A calm countryside house near orchards and open space, ideal for longer stays with family.',
-      pricePerNight: 160,
+      title: 'Nyamata Orchard House',
+      description: 'A calm countryside house in Nyamata near orchards and open fields, ideal for longer stays with family or team retreats.',
+      pricePerNight: 135,
       guest: 5,
-      location: 'Austin, Texas, USA',
+      location: 'Nyamata, Rwanda',
       type: 'HOUSE' as const,
       amenities: ['Garden', 'Fire pit', 'Free parking', 'Kitchen'],
       hostId: hostTwo.id,
     },
     {
-      title: 'Coastal Beach Bungalow',
-      description: 'A charming beachfront bungalow with sandy views, direct beach access, and a relaxed atmosphere.',
-      pricePerNight: 250,
+      title: 'Kibuye Lake Bungalow',
+      description: 'A charming lakeside bungalow in Kibuye with sunrise views, direct shoreline access, and a peaceful atmosphere.',
+      pricePerNight: 210,
       guest: 4,
-      location: 'Malibu, California, USA',
+      location: 'Kibuye, Rwanda',
       type: 'HOUSE' as const,
       amenities: ['Beach access', 'Outdoor shower', 'Deck', 'Parking'],
       hostId: hostOne.id,
@@ -185,13 +202,13 @@ async function main() {
 
   // Real placeholder images from picsum.photos
   const placeholderImages = [
-    'https://picsum.photos/seed/listing1/800/600.jpg',
-    'https://picsum.photos/seed/listing2/800/600.jpg',
-    'https://picsum.photos/seed/listing3/800/600.jpg',
-    'https://picsum.photos/seed/listing4/800/600.jpg',
-    'https://picsum.photos/seed/listing5/800/600.jpg',
-    'https://picsum.photos/seed/listing6/800/600.jpg',
-    'https://picsum.photos/seed/listing7/800/600.jpg',
+    'https://picsum.photos/seed/rwanda-kigali-loft/800/600.jpg',
+    'https://picsum.photos/seed/rwanda-lake-kivu-house/800/600.jpg',
+    'https://picsum.photos/seed/rwanda-musanze-cabin/800/600.jpg',
+    'https://picsum.photos/seed/rwanda-rubavu-villa/800/600.jpg',
+    'https://picsum.photos/seed/rwanda-huye-suite/800/600.jpg',
+    'https://picsum.photos/seed/rwanda-nyamata-house/800/600.jpg',
+    'https://picsum.photos/seed/rwanda-kibuye-bungalow/800/600.jpg',
   ];
 
   for (const [index, listing] of createdListings.entries()) {
@@ -235,6 +252,14 @@ async function main() {
       startOffsetDays: 18,
       nights: 2,
       status: 'CANCELLED' as const,
+      priceMultiplier: 1,
+    },
+    {
+      listing: createdListings[3],
+      guest: guestFour,
+      startOffsetDays: 24,
+      nights: 5,
+      status: 'CONFIRMED' as const,
       priceMultiplier: 1,
     },
   ];
@@ -281,11 +306,17 @@ async function main() {
         rating: 5,
         comment: 'Quiet cabin with an excellent view.',
       },
+      {
+        listingId: createdListings[3].id,
+        userId: guestFour.id,
+        rating: 5,
+        comment: 'Beautiful lake views and a very peaceful stay.',
+      },
     ],
   });
 
   console.log(
-    `Seed complete: ${createdUsers.size} users, ${createdListings.length} listings, ${createdBookings.length} bookings, 3 reviews.`
+    `Seed complete: ${createdUsers.size} users, ${createdListings.length} listings, ${createdBookings.length} bookings, 4 reviews.`
   );
 }
 

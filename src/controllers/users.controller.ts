@@ -101,12 +101,19 @@ export const getUsersStats = async (_req: Request, res: Response, next: NextFunc
     const cached = cache.get(STATS_KEY);
     if (cached) return res.json(cached);
 
-    const [totalUsers, byRole] = await Promise.all([
+    const [totalUsers, totalListings, totalBookings, byRole] = await Promise.all([
       prisma.user.count(),
+      prisma.listing.count(),
+      prisma.booking.count(),
       prisma.user.groupBy({ by: ['role'], _count: { id: true } }),
     ]);
 
-    const stats = { totalUsers, byRole: byRole.map(g => ({ role: g.role, count: g._count.id })) };
+    const stats = {
+      totalUsers,
+      totalListings,
+      totalBookings,
+      byRole: byRole.map(g => ({ role: g.role, count: g._count.id })),
+    };
     cache.set(STATS_KEY, stats, 300);
     res.json(stats);
   } catch (e) { next(e); }

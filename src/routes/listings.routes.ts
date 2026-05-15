@@ -260,13 +260,13 @@
  */
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware.js';
+import { upload } from '../config/multer.js';
+import { uploadListingPhotos, deleteListingPhoto } from '../controllers/upload.controller.js';
 import {
   getListings,
   getListingById,
   createListing,
   updateListing,
-  uploadPhotos,
-  deletePhoto,
   publishListing,
   setAvailability,
   getAvailability,
@@ -278,16 +278,22 @@ const router = Router();
 
 // Public routes
 router.get('/', getListings);
+router.get('/host/:hostId', getHostListings);
 router.get('/:listingId', getListingById);
 router.get('/:listingId/availability', getAvailability);
-router.get('/host/:hostId', getHostListings);
 
 // Protected routes (Host only)
 router.post('/', authenticate, createListing);
 router.put('/:listingId', authenticate, updateListing);
 router.post('/:listingId/publish', authenticate, publishListing);
-router.post('/:listingId/photos', authenticate, uploadPhotos);
-router.delete('/:listingId/photos/:photoId', authenticate, deletePhoto);
+router.post('/:listingId/photos', authenticate, upload.array('photos', 5), (req, res, next) => {
+  req.params.id = req.params.listingId;
+  return uploadListingPhotos(req, res, next);
+});
+router.delete('/:listingId/photos/:photoId', authenticate, (req, res, next) => {
+  req.params.id = req.params.listingId;
+  return deleteListingPhoto(req, res, next);
+});
 router.post('/:listingId/availability', authenticate, setAvailability);
 router.delete('/:listingId', authenticate, deleteListing);
 

@@ -229,8 +229,16 @@ export const deleteBooking = async (req: AuthRequest, res: Response, next: NextF
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    await prisma.booking.delete({ where: { id: booking.id } });
-    return res.status(204).send();
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: 'CANCELLED' },
+      include: {
+        listing: true,
+        guest: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    return res.json(updated);
   } catch (error) {
     return next(error);
   }
