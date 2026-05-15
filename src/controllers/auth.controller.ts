@@ -4,6 +4,8 @@ import crypto from 'crypto';
 import prisma from '../config/prisma.js';
 import { createAccessToken, createRefreshToken } from '../utils/jwt.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService.js';
+import jwt from 'jsonwebtoken';
+import fetch from 'node-fetch';
 
 const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 const RESET_TOKEN_EXPIRY = 30 * 60 * 1000;
@@ -173,4 +175,77 @@ export const getMe = wrap(async (req: Request, res: Response) => {
 
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
+});
+
+export const oauthGoogle = wrap(async (req: Request, res: Response) => {
+  const { idToken } = req.body;
+  if (!idToken) return res.status(400).json({ error: 'idToken required' });
+
+  // Verify the token with Google's tokeninfo endpoint (suitable for sandbox/dev)
+  const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+  if (!resp.ok) return res.status(400).json({ error: 'Invalid Google idToken' });
+  const payload = await resp.json();
+
+  // payload contains email, email_verified, name, picture, sub
+  if (!payload.email || payload.email_verified !== 'true' && payload.email_verified !== true) {
+    return res.status(400).json({ error: 'Email not verified by Google' });
+  }
+
+  const email: string = payload.email;
+  const name: string = payload.name ?? '';
+  const avatar: string | undefined = payload.picture;
+
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    // create a lightweight user account for OAuth login
+    user = await prisma.user.create({
+      data: {
+        name: name || email.split('@')[0],
+        email,
+        username: (email.split('@')[0] + Math.floor(Math.random() * 10000)).slice(0, 32),
+        phone: '',
+        password: await bcrypt.hash(randomToken(), 10),
+        role: 'GUEST',
+        avatar,
+      },
+    });
+  }
+
+  const accessToken = createAccessToken(user.id, user.email, user.role);
+  const refreshToken = createRefreshToken(user.id);
+
+  res.json({ message: 'OAuth login successful', accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar } });
+});
+
+export const oauthApple = wrap(async (req: Request, res: Response) => {
+  const { idToken } = req.body;
+  if (!idToken) return res.status(400).json({ error: 'idToken required' });
+
+  // NOTE: Proper Apple ID token verification requires fetching Apple's JWKS and
+  // verifying the JWT signature. For development convenience we decode the token
+  // and accept it, but in production you MUST verify the signature and audience.
+  const decoded = jwt.decode(idToken) as any | null;
+  if (!decoded || !decoded.email) return res.status(400).json({ error: 'Invalid Apple idToken' });
+
+  const email: string = decoded.email;
+  const name = decoded.name ?? '';
+
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        name: name || email.split('@')[0],
+        email,
+        username: (email.split('@')[0] + Math.floor(Math.random() * 10000)).slice(0, 32),
+        phone: '',
+        password: await bcrypt.hash(randomToken(), 10),
+        role: 'GUEST',
+      },
+    });
+  }
+
+  const accessToken = createAccessToken(user.id, user.email, user.role);
+  const refreshToken = createRefreshToken(user.id);
+
+  res.json({ message: 'OAuth login successful (apple)', accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });

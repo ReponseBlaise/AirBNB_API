@@ -641,10 +641,13 @@ import {
   forgotPassword,
   resetPassword,
 } from '../controllers/auth.controller.js';
+import { oauthGoogle, oauthApple } from '../controllers/auth.controller.js';
 
 const router = Router();
 
 // Public routes
+router.post('/oauth/google', oauthGoogle);
+router.post('/oauth/apple', oauthApple);
 router.post('/register', register);
 router.post('/login', login);
 router.get('/verify-email', verifyEmail);
