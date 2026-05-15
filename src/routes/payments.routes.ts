@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import {
-  authorizePayment,
+  initiateMtn,
   capturePayment,
   refundPayment,
   getPayment,
   getBookingPayments,
   getUserPayments,
+  mtnWebhook,
 } from '../controllers/payments.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 
@@ -114,10 +115,14 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// Payment authorization flow
-router.post('/authorize', authenticate, authorizePayment);
+// Payment authorization / initiation flow
+router.post('/authorize', authenticate, initiateMtn);
+router.post('/mtn/initiate', authenticate, initiateMtn);
 router.post('/:paymentId/capture', authenticate, capturePayment);
 router.post('/:paymentId/refund', authenticate, refundPayment);
+
+// MTN webhook (public)
+router.post('/mtn/webhook', mtnWebhook);
 
 // Retrieval
 router.get('/:paymentId', authenticate, getPayment);

@@ -65,9 +65,28 @@ model Booking {
 
   listing    Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   guest      User    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  payments   Payment[]
   @@index([guestId])
   @@index([listingId])
   @@index([listingId, checkIn, checkOut])
+  @@index([status])
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  bookingId     String
+  amount        Float
+  currency      String        @default("RWF")
+  provider      String        @default("MTN")
+  transactionId String?       @unique
+  status        PaymentStatus @default(PENDING)
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
   @@index([status])
 }
 
@@ -110,4 +129,12 @@ enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  REFUNDED
+  FAILED
 }
