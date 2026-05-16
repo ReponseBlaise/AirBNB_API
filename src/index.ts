@@ -49,7 +49,6 @@ app.use('/api/v1', uploadRouter);
 // Mount versioned API (v1)
 app.use('/api/v1', deprecateV1, v1Router);
 
-// Rest of your code remains the same...
 app.get('/', (_req, res) =>
   res.json({
     message: 'AirBNB API',
