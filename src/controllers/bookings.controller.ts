@@ -2,6 +2,8 @@ import type { NextFunction, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import prisma from '../config/prisma.js';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
+import { sendEmail } from '../config/email.js';
+import { bookingConfirmationEmail, bookingCancellationEmail } from '../templates/emails.js';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const validStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED'] as const;
@@ -80,6 +82,28 @@ export const createBooking = async (req: AuthRequest, res: Response, next: NextF
         guest: { select: { id: true, name: true, email: true } },
       },
     });
+
+    // Send confirmation email to guest (async, don't block response)
+    try {
+      if (booking.guest?.email) {
+        const checkInStr = checkInDate.toLocaleDateString();
+        const checkOutStr = checkOutDate.toLocaleDateString();
+        const emailHtml = bookingConfirmationEmail(
+          booking.guest.name,
+          listing.title,
+          listing.location,
+          checkInStr,
+          checkOutStr,
+          booking.totalPrice
+        );
+        sendEmail(booking.guest.email, 'Booking Confirmation - Airbnb', emailHtml).catch(err => {
+          console.error('Failed to send booking confirmation email:', err);
+        });
+      }
+    } catch (emailError) {
+      console.error('Error sending booking confirmation email:', emailError);
+      // Don't fail the booking creation if email fails
+    }
 
     return res.status(201).json(booking);
   } catch (error) {
@@ -171,7 +195,10 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response, next:
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { listing: true },
+      include: { 
+        listing: true,
+        guest: { select: { id: true, name: true, email: true } },
+      },
     });
 
     if (!booking) {
@@ -188,10 +215,52 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response, next:
       return res.status(403).json({ error: 'Not authorized' });
     }
 
+    const prevStatus = booking.status;
     const updated = await prisma.booking.update({
       where: { id: booking.id },
       data: { status: String(status) as (typeof validStatuses)[number] },
+      include: {
+        listing: true,
+        guest: { select: { id: true, name: true, email: true } },
+      },
     });
+
+    // Send status change emails (async, don't block response)
+    try {
+      if (updated.guest?.email) {
+        const checkInStr = updated.checkIn.toLocaleDateString();
+        const checkOutStr = updated.checkOut.toLocaleDateString();
+        
+        if (updated.status === 'CONFIRMED' && prevStatus === 'PENDING') {
+          // Booking confirmed
+          const emailHtml = bookingConfirmationEmail(
+            updated.guest.name,
+            updated.listing.title,
+            updated.listing.location,
+            checkInStr,
+            checkOutStr,
+            updated.totalPrice
+          );
+          sendEmail(updated.guest.email, 'Booking Confirmed - Airbnb', emailHtml).catch(err => {
+            console.error('Failed to send booking confirmed email:', err);
+          });
+        } else if (updated.status === 'CANCELLED' && prevStatus !== 'CANCELLED') {
+          // Booking cancelled
+          const emailHtml = bookingCancellationEmail(
+            updated.guest.name,
+            updated.listing.title,
+            checkInStr,
+            checkOutStr
+          );
+          sendEmail(updated.guest.email, 'Booking Cancelled - Airbnb', emailHtml).catch(err => {
+            console.error('Failed to send booking cancellation email:', err);
+          });
+        }
+      }
+    } catch (emailError) {
+      console.error('Error sending booking status email:', emailError);
+      // Don't fail the status update if email fails
+    }
 
     return res.json(updated);
   } catch (error) {
@@ -212,7 +281,10 @@ export const deleteBooking = async (req: AuthRequest, res: Response, next: NextF
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { listing: true },
+      include: { 
+        listing: true,
+        guest: { select: { id: true, name: true, email: true } },
+      },
     });
 
     if (!booking) {
@@ -237,6 +309,26 @@ export const deleteBooking = async (req: AuthRequest, res: Response, next: NextF
         guest: { select: { id: true, name: true, email: true } },
       },
     });
+
+    // Send cancellation email (async, don't block response)
+    try {
+      if (updated.guest?.email) {
+        const checkInStr = updated.checkIn.toLocaleDateString();
+        const checkOutStr = updated.checkOut.toLocaleDateString();
+        const emailHtml = bookingCancellationEmail(
+          updated.guest.name,
+          updated.listing.title,
+          checkInStr,
+          checkOutStr
+        );
+        sendEmail(updated.guest.email, 'Booking Cancelled - Airbnb', emailHtml).catch(err => {
+          console.error('Failed to send booking cancellation email:', err);
+        });
+      }
+    } catch (emailError) {
+      console.error('Error sending booking cancellation email:', emailError);
+      // Don't fail the cancellation if email fails
+    }
 
     return res.json(updated);
   } catch (error) {

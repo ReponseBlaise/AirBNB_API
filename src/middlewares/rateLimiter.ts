@@ -32,3 +32,9 @@ export const authLimiter = limiter(
   parseLimit('RATE_LIMIT_AUTH_MAX', 5, 200),
   'Too many auth attempts, please try again later.',
 );
+
+// AI-specific rate limiter: stricter limits for expensive operations
+export const aiLimiter = limiter(
+  parseLimit('RATE_LIMIT_AI_MAX', 10, 50),
+  'Too many AI requests. Please wait a moment and try again.',
+);

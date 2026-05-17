@@ -202,26 +202,69 @@ export async function generateListingDescription(req: Request, res: Response) {
   try {
     const { title, location, type, guests, amenities, price } = req.body;
 
-    if (!title || !location || !type || !guests || !amenities || !price) {
+    // Validate required fields
+    if (!title || !location || !type || guests === undefined || !amenities || price === undefined) {
       return res.status(400).json({
-        error: "title, location, type, guests, amenities, and price are required",
+        error: "Missing required fields: title, location, type, guests, amenities, and price are all required",
       });
+    }
+
+    // Validate types and ranges
+    if (typeof title !== 'string' || title.trim().length < 10) {
+      return res.status(400).json({ error: "Title must be a string with at least 10 characters" });
+    }
+    if (typeof location !== 'string' || location.trim().length < 3) {
+      return res.status(400).json({ error: "Location must be a string with at least 3 characters" });
+    }
+    if (typeof type !== 'string' || !['APARTMENT', 'HOUSE', 'VILLA', 'CABIN'].includes(type)) {
+      return res.status(400).json({ error: "Type must be one of: APARTMENT, HOUSE, VILLA, CABIN" });
+    }
+    if (typeof guests !== 'number' || guests < 1) {
+      return res.status(400).json({ error: "Guests must be a number greater than 0" });
+    }
+    if (typeof price !== 'number' || price < 1) {
+      return res.status(400).json({ error: "Price must be a number greater than 0" });
+    }
+
+    // Normalize amenities to array of strings
+    let amenitiesArray: string[] = [];
+    if (typeof amenities === 'string') {
+      amenitiesArray = amenities.split(',').map(a => a.trim()).filter(a => a.length > 0);
+    } else if (Array.isArray(amenities)) {
+      amenitiesArray = amenities.map(a => String(a).trim()).filter(a => a.length > 0);
+    }
+    
+    if (amenitiesArray.length === 0) {
+      return res.status(400).json({ error: "At least one amenity is required" });
     }
 
     const { descriptionChain } = await loadAiRuntime();
     const description = await descriptionChain.invoke({
-      title,
-      location,
+      title: title.trim(),
+      location: location.trim(),
       type,
-      guests,
-      amenities: Array.isArray(amenities) ? amenities.join(", ") : amenities,
-      price,
+      guests: Math.min(guests, 100), // Cap to prevent unrealistic values
+      amenities: amenitiesArray.join(", "),
+      price: Math.min(price, 100000), // Cap to prevent unrealistic values
     });
 
-    res.json({ description });
+    if (!description || typeof description !== 'string') {
+      throw new Error('AI service returned invalid response');
+    }
+
+    const trimmedDescription = description.trim();
+    if (trimmedDescription.length === 0) {
+      throw new Error('AI service generated empty description');
+    }
+
+    res.json({ description: trimmedDescription });
   } catch (error) {
     console.error("Description generation error:", error);
-    res.status(500).json({ error: "Failed to generate description" });
+    const errorMessage = error instanceof Error ? error.message : "Failed to generate description";
+    res.status(500).json({ 
+      error: "Failed to generate description",
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    });
   }
 }
 

@@ -5,6 +5,7 @@ import {
   chat,
 } from "../../controllers/ai.controller.js";
 import { authenticate } from "../../middlewares/auth.middleware.js";
+import { aiLimiter } from "../../middlewares/rateLimiter.js";
 
 const router = Router();
 
@@ -29,7 +30,7 @@ const router = Router();
  *       200:
  *         description: Listings matching the natural language query
  */
-router.post("/search", naturalLanguageSearch);
+router.post("/search", aiLimiter, naturalLanguageSearch);
 
 /**
  * @swagger
@@ -71,7 +72,7 @@ router.post("/search", naturalLanguageSearch);
  *       200:
  *         description: Generated listing description
  */
-router.post("/generate-description", authenticate, generateListingDescription);
+router.post("/generate-description", authenticate, aiLimiter, generateListingDescription);
 
 /**
  * @swagger
@@ -97,6 +98,6 @@ router.post("/generate-description", authenticate, generateListingDescription);
  *       200:
  *         description: AI response
  */
-router.post("/chat", chat);
+router.post("/chat", aiLimiter, chat);
 
 export default router;
