@@ -2,6 +2,6 @@ services:
   - type: web
     name: airbnb-api
     env: node
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci --include=dev && npm run build && npm run migrate
     startCommand: npm start
     autoDeploy: true
