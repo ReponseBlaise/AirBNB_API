@@ -287,10 +287,12 @@ router.post('/', authenticate, createListing);
 router.put('/:listingId', authenticate, updateListing);
 router.post('/:listingId/publish', authenticate, publishListing);
 router.post('/:listingId/photos', authenticate, upload.array('photos', 5), (req, res, next) => {
+  if (!req.params.listingId) return res.status(400).json({ error: 'listingId is required' });
   req.params.id = req.params.listingId;
   return uploadListingPhotos(req, res, next);
 });
 router.delete('/:listingId/photos/:photoId', authenticate, (req, res, next) => {
+  if (!req.params.listingId) return res.status(400).json({ error: 'listingId is required' });
   req.params.id = req.params.listingId;
   return deleteListingPhoto(req, res, next);
 });

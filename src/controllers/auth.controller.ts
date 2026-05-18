@@ -184,14 +184,20 @@ export const oauthGoogle = wrap(async (req: Request, res: Response) => {
   // Verify the token with Google's tokeninfo endpoint (suitable for sandbox/dev)
   const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
   if (!resp.ok) return res.status(400).json({ error: 'Invalid Google idToken' });
-  const payload = await resp.json();
+  const payload = (await resp.json()) as {
+    email?: string;
+    email_verified?: string | boolean;
+    name?: string;
+    picture?: string;
+  };
 
   // payload contains email, email_verified, name, picture, sub
   if (!payload.email || payload.email_verified !== 'true' && payload.email_verified !== true) {
     return res.status(400).json({ error: 'Email not verified by Google' });
   }
 
-  const email: string = payload.email;
+  const email = payload.email;
+  if (!email) return res.status(400).json({ error: 'Invalid Google idToken' });
   const name: string = payload.name ?? '';
   const avatar: string | undefined = payload.picture;
 
@@ -227,7 +233,8 @@ export const oauthApple = wrap(async (req: Request, res: Response) => {
   const decoded = jwt.decode(idToken) as any | null;
   if (!decoded || !decoded.email) return res.status(400).json({ error: 'Invalid Apple idToken' });
 
-  const email: string = decoded.email;
+  const email = decoded.email;
+  if (!email) return res.status(400).json({ error: 'Invalid Apple idToken' });
   const name = decoded.name ?? '';
 
   let user = await prisma.user.findUnique({ where: { email } });

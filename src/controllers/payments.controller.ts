@@ -69,7 +69,10 @@ export const refundPayment = async (req: AuthRequest, res: Response, _next: Next
 		const isAdmin = req.role === 'ADMIN'
 		if (!isHost && !isAdmin) return res.status(403).json({ error: 'Not authorized to refund' })
 
-		const updated = await prisma.payment.update({ where: { id: payment.id }, data: { status: 'REFUNDED', metadata: { ...payment.metadata, refundReason: reason ?? null, refundedAmount: amount ?? payment.amount } } })
+		const metadata = payment.metadata && typeof payment.metadata === 'object' && !Array.isArray(payment.metadata)
+			? (payment.metadata as Record<string, unknown>)
+			: {}
+		const updated = await prisma.payment.update({ where: { id: payment.id }, data: { status: 'REFUNDED', metadata: { ...metadata, refundReason: reason ?? null, refundedAmount: amount ?? payment.amount } } })
 
 		return res.status(201).json({ payment: updated, refundedAmount: amount ?? payment.amount })
 	} catch (error) {
