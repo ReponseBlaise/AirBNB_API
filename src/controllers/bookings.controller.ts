@@ -4,6 +4,7 @@ import prisma from '../config/prisma.js';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import { sendEmail } from '../config/email.js';
 import { bookingConfirmationEmail, bookingCancellationEmail } from '../templates/emails.js';
+import { createNotification } from './notifications.controller.js';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const validStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED'] as const;
@@ -310,6 +311,21 @@ export const deleteBooking = async (req: AuthRequest, res: Response, next: NextF
       },
     });
 
+    // If there are captured payments for this booking, mark them as refunded and notify parties
+    try {
+      const payments = await prisma.payment.findMany({ where: { bookingId: booking.id, status: 'CAPTURED' } });
+      for (const p of payments) {
+        const metadata = p.metadata && typeof p.metadata === 'object' && !Array.isArray(p.metadata) ? (p.metadata as Record<string, unknown>) : {};
+        await prisma.payment.update({ where: { id: p.id }, data: { status: 'REFUNDED', metadata: { ...metadata, refundReason: 'booking cancelled', refundedAmount: p.amount } } });
+      }
+      // create notifications for guest and host
+      if (updated.guest) {
+        await createNotification(updated.guest.id, 'BOOKING', 'Booking cancelled', `Your booking for ${updated.listing.title} was cancelled.`);
+      }
+      await createNotification(updated.listing.hostId, 'BOOKING', 'Booking cancelled', `Booking for ${updated.listing.title} was cancelled.`);
+    } catch (refundErr) {
+      console.error('Error processing refunds during cancellation:', refundErr);
+    }
     // Send cancellation email (async, don't block response)
     try {
       if (updated.guest?.email) {

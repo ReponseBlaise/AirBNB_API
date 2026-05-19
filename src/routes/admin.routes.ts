@@ -8,9 +8,12 @@ import {
   getDisputes,
   resolveDispute,
   getAdminStats,
-  requireAdmin,
+  exportBookings,
+  exportUsers,
 } from '../controllers/admin.controller.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
+import { uploadImport } from '../config/importMulter.js';
+import { importData, getImportTemplate } from '../controllers/admin.imports.controller.js';
+import { authenticate, requireAdmin } from '../middlewares/auth.middleware.js';
 
 /**
  * @swagger
@@ -60,5 +63,10 @@ router.put('/disputes/:disputeId/resolve', resolveDispute);
 // Logs and stats
 router.get('/audit-logs', getAuditLogs);
 router.get('/stats', getAdminStats);
+router.get('/export/bookings', exportBookings);
+router.get('/export/users', exportUsers);
+// Bulk import (CSV/XLSX)
+router.post('/import', uploadImport.single('file'), importData);
+router.get('/import/templates/:name', getImportTemplate);
 
 export default router;

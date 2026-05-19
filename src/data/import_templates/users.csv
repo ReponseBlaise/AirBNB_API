@@ -1,0 +1,3 @@
+email,name,username,phone,role
+alice@example.com,Alice,alice123,+250788000000,HOST
+bob@example.com,Bob,bob007,+250788000001,GUEST

@@ -23,6 +23,9 @@ model User {
 
   listings  Listing[]
   bookings  Booking[]
+  messagesSent Message[] @relation("messageSender")
+  messagesReceived Message[] @relation("messageReceiver")
+  notifications Notification[]
   reviews   Review[]
   @@index([name])
   @@index([role])
@@ -144,4 +147,34 @@ enum ListingStatus {
   PENDING
   ACTIVE
   REJECTED
+}
+
+// Messaging and notifications
+model Message {
+  id         String   @id @default(uuid())
+  threadId   String?
+  senderId   String
+  receiverId String
+  listingId  String?
+  bookingId  String?
+  content    String
+  flagged    Boolean  @default(false)
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender User @relation("messageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("messageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
