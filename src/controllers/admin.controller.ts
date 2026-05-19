@@ -56,7 +56,7 @@ export const exportBookings = async (_req: AuthRequest, res: Response, next: Nex
 		if (String(_req.query.format) === 'pdf') {
 			const doc = new PDFDocument({ size: 'A4', margin: 30 });
 			const chunks: Buffer[] = [];
-			doc.on('data', (c) => chunks.push(c));
+			doc.on('data', (c: Buffer) => chunks.push(c));
 			doc.on('end', () => sendBufferAsFile(res, Buffer.concat(chunks), 'bookings.pdf', 'application/pdf'));
 			doc.fontSize(14).text('Bookings Export', { align: 'center' });
 			doc.moveDown();

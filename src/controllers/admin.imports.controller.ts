@@ -6,11 +6,13 @@ import ExcelJS from 'exceljs';
 
 type ImportTarget = 'users' | 'listings' | 'bookings';
 
-const parseCsv = (buf: Buffer) => {
+const parseCsv = (buf: Buffer<ArrayBufferLike>) => {
   const text = buf.toString('utf8').replace(/\r\n/g, '\n');
   const lines = text.split('\n').filter(Boolean);
   if (lines.length === 0) return { headers: [], rows: [] };
-  const headers = lines[0].split(',').map(h => h.trim());
+  const firstLine = lines[0];
+  if (!firstLine) return { headers: [], rows: [] };
+  const headers = firstLine.split(',').map(h => h.trim());
   const rows = lines.slice(1).map(line => {
     const cols = line.split(',');
     const obj: Record<string, string> = {};
@@ -20,9 +22,9 @@ const parseCsv = (buf: Buffer) => {
   return { headers, rows };
 };
 
-const parseXlsx = async (buf: Buffer) => {
+const parseXlsx = async (buf: Buffer<ArrayBufferLike>) => {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buf);
+  await workbook.xlsx.load(Buffer.from(buf));
   const sheet = workbook.worksheets[0];
   if (!sheet) return { headers: [], rows: [] };
   const headerRow = sheet.getRow(1).values as Array<string>;
