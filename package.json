@@ -1,6 +1,9 @@
 {
   "name": "my-app",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "type": "module",
   "scripts": {
     "dev": "nodemon --exec tsx src/index.ts",
