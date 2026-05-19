@@ -197,30 +197,31 @@ export const oauthGoogle = wrap(async (req: Request, res: Response) => {
   }
 
   const email = payload.email;
-  if (!email) return res.status(400).json({ error: 'Invalid Google idToken' });
+  if (typeof email !== 'string' || !email) return res.status(400).json({ error: 'Invalid Google idToken' });
   const name: string = payload.name ?? '';
   const avatar: string | undefined = payload.picture;
+  const emailPrefix = email.split('@')[0] ?? 'user';
 
   let user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    // create a lightweight user account for OAuth login
     user = await prisma.user.create({
       data: {
-        name: name || email.split('@')[0],
+        name: name || emailPrefix,
         email,
-        username: (email.split('@')[0] + Math.floor(Math.random() * 10000)).slice(0, 32),
+        username: (emailPrefix + Math.floor(Math.random() * 10000)).slice(0, 32),
         phone: '',
         password: await bcrypt.hash(randomToken(), 10),
         role: 'GUEST',
-        avatar,
+        avatar: avatar ?? null,
       },
     });
   }
 
-  const accessToken = createAccessToken(user.id, user.email ?? '', user.role);
-  const refreshToken = createRefreshToken(user.id);
+  const oauthUser = user;
+  const accessToken = createAccessToken(oauthUser.id, oauthUser.email ?? '', oauthUser.role);
+  const refreshToken = createRefreshToken(oauthUser.id);
 
-  res.json({ message: 'OAuth login successful', accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email ?? '', role: user.role, avatar: user.avatar ?? undefined } });
+  res.json({ message: 'OAuth login successful', accessToken, refreshToken, user: { id: oauthUser.id, name: oauthUser.name, email: oauthUser.email ?? '', role: oauthUser.role, avatar: oauthUser.avatar ?? undefined } });
 });
 
 export const oauthApple = wrap(async (req: Request, res: Response) => {
@@ -234,16 +235,17 @@ export const oauthApple = wrap(async (req: Request, res: Response) => {
   if (!decoded || !decoded.email) return res.status(400).json({ error: 'Invalid Apple idToken' });
 
   const email = decoded.email;
-  if (!email) return res.status(400).json({ error: 'Invalid Apple idToken' });
+  if (typeof email !== 'string' || !email) return res.status(400).json({ error: 'Invalid Apple idToken' });
   const name = decoded.name ?? '';
+  const emailPrefix = email.split('@')[0] ?? 'user';
 
   let user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
     user = await prisma.user.create({
       data: {
-        name: name || email.split('@')[0],
+        name: name || emailPrefix,
         email,
-        username: (email.split('@')[0] + Math.floor(Math.random() * 10000)).slice(0, 32),
+        username: (emailPrefix + Math.floor(Math.random() * 10000)).slice(0, 32),
         phone: '',
         password: await bcrypt.hash(randomToken(), 10),
         role: 'GUEST',
@@ -251,8 +253,9 @@ export const oauthApple = wrap(async (req: Request, res: Response) => {
     });
   }
 
-  const accessToken = createAccessToken(user.id, user.email ?? '', user.role);
-  const refreshToken = createRefreshToken(user.id);
+  const oauthUser = user;
+  const accessToken = createAccessToken(oauthUser.id, oauthUser.email ?? '', oauthUser.role);
+  const refreshToken = createRefreshToken(oauthUser.id);
 
-  res.json({ message: 'OAuth login successful (apple)', accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email ?? '', role: user.role } });
+  res.json({ message: 'OAuth login successful (apple)', accessToken, refreshToken, user: { id: oauthUser.id, name: oauthUser.name, email: oauthUser.email ?? '', role: oauthUser.role } });
 });

@@ -4,8 +4,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'replace-with-a-long-random-secret-
 
 export interface TokenPayload extends JwtPayload { userId: string; email?: string; role: string; }
 
-// `email` may be undefined in some flows (OAuth-lite users); accept optional and normalize when signing
-export const createAccessToken  = (userId: string, email?: string, role: string) =>
+export const createAccessToken = (userId: string, email: string, role: string) =>
   jwt.sign({ userId, email: email ?? '', role }, JWT_SECRET, { expiresIn: '15m' });
 export const createRefreshToken = (userId: string) => jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
 

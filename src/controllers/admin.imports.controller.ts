@@ -55,6 +55,9 @@ const FIELD_ALIASES: Record<ImportTarget, Record<string, string[]>> = {
     pricePerNight: ['pricepernight', 'price_per_night', 'price'],
     hostId: ['hostid', 'host_id'],
     hostEmail: ['hostemail', 'host_email', 'host'],
+    guest: ['guest', 'guests', 'guestcount', 'capacity'],
+    type: ['type', 'listingtype', 'category'],
+    amenities: ['amenities', 'amenity', 'features'],
   },
   bookings: {
     listingId: ['listingid', 'listing_id'],
@@ -66,7 +69,8 @@ const FIELD_ALIASES: Record<ImportTarget, Record<string, string[]>> = {
   },
 };
 
-const findValueFromRow = (row: Record<string,string>, aliases: string[]) => {
+const findValueFromRow = (row: Record<string,string>, aliases?: readonly string[]) => {
+  if (!aliases || aliases.length === 0) return '';
   const lowMap: Record<string,string> = {};
   for (const k of Object.keys(row)) {
     lowMap[k.trim().toLowerCase()] = k;
@@ -139,6 +143,12 @@ export const importData = async (req: Request, res: Response, next: NextFunction
         norm.location = findValueFromRow(row, aliases.location) || '';
         norm.pricePerNight = Number(findValueFromRow(row, aliases.pricePerNight) || 0) || 0;
         norm.hostId = hostId;
+        norm.guest = Number(findValueFromRow(row, aliases.guest) || 1) || 1;
+        norm.type = findValueFromRow(row, aliases.type) || 'APARTMENT';
+        norm.amenities = findValueFromRow(row, aliases.amenities)
+          .split('|')
+          .map(item => item.trim())
+          .filter(Boolean);
       } else if (target === 'bookings') {
         const aliases = FIELD_ALIASES.bookings;
         const listingId = findValueFromRow(row, aliases.listingId);
@@ -166,6 +176,7 @@ export const importData = async (req: Request, res: Response, next: NextFunction
 
     for (let i = 0; i < parsed.rows.length; i++) {
       const row = parsed.rows[i];
+      if (!row) continue;
       const rowNum = i + 2; // account for header row
       try {
         const { valid, errors: vErrs, normalized } = await validateRow(row, rowNum);
@@ -204,6 +215,9 @@ export const importData = async (req: Request, res: Response, next: NextFunction
             location: String(normalized?.location ?? ''),
             pricePerNight: Number(normalized?.pricePerNight ?? 0) || 0,
             hostId: String(normalized?.hostId ?? ''),
+            guest: Number(normalized?.guest ?? 1) || 1,
+            type: String(normalized?.type ?? 'APARTMENT') as any,
+            amenities: Array.isArray(normalized?.amenities) ? normalized.amenities as string[] : [],
           } });
           results.created++;
         } else if (target === 'bookings') {
