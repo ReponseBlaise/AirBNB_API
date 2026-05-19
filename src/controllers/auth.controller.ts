@@ -253,6 +253,6 @@ export const oauthApple = wrap(async (req: Request, res: Response) => {
 
   const accessToken = createAccessToken(user.id, user.email ?? '', user.role);
   const refreshToken = createRefreshToken(user.id);
-  
+
   res.json({ message: 'OAuth login successful (apple)', accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email ?? '', role: user.role } });
 });
