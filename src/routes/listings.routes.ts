@@ -272,6 +272,7 @@ import {
   getAvailability,
   getHostListings,
   deleteListing,
+  setListingStatus,
 } from '../controllers/listings.controller.js';
 
 const router = Router();
@@ -297,6 +298,7 @@ router.delete('/:listingId/photos/:photoId', authenticate, (req, res, next) => {
   return deleteListingPhoto(req, res, next);
 });
 router.post('/:listingId/availability', authenticate, setAvailability);
+router.patch('/:listingId/status', authenticate, setListingStatus);
 router.delete('/:listingId', authenticate, deleteListing);
 
 export default router;

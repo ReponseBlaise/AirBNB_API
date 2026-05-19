@@ -89,14 +89,14 @@ export const login = wrap(async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
 
-  const accessToken = createAccessToken(user.id, user.email, user.role);
+  const accessToken = createAccessToken(user.id, user.email ?? '', user.role);
   const refreshToken = createRefreshToken(user.id);
 
   res.json({
     message: 'Login successful',
     accessToken,
     refreshToken,
-    user: { id: user.id, name: user.name, email: user.email, username: user.username, phone: user.phone, role: user.role },
+    user: { id: user.id, name: user.name, email: user.email ?? '', username: user.username, phone: user.phone, role: user.role },
   });
 });
 
@@ -217,10 +217,10 @@ export const oauthGoogle = wrap(async (req: Request, res: Response) => {
     });
   }
 
-  const accessToken = createAccessToken(user.id, user.email, user.role);
+  const accessToken = createAccessToken(user.id, user.email ?? '', user.role);
   const refreshToken = createRefreshToken(user.id);
 
-  res.json({ message: 'OAuth login successful', accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar } });
+  res.json({ message: 'OAuth login successful', accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email ?? '', role: user.role, avatar: user.avatar ?? undefined } });
 });
 
 export const oauthApple = wrap(async (req: Request, res: Response) => {
@@ -251,8 +251,8 @@ export const oauthApple = wrap(async (req: Request, res: Response) => {
     });
   }
 
-  const accessToken = createAccessToken(user.id, user.email, user.role);
+  const accessToken = createAccessToken(user.id, user.email ?? '', user.role);
   const refreshToken = createRefreshToken(user.id);
-
-  res.json({ message: 'OAuth login successful (apple)', accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  
+  res.json({ message: 'OAuth login successful (apple)', accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email ?? '', role: user.role } });
 });

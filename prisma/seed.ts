@@ -127,6 +127,7 @@ async function main() {
       type: 'APARTMENT' as const,
       amenities: ['WiFi', 'Air conditioning', 'Kitchen', 'Workspace'],
       hostId: hostOne.id,
+      status: 'ACTIVE' as const,
     },
     {
       title: 'Lake Kivu Family House',
@@ -137,6 +138,7 @@ async function main() {
       type: 'HOUSE' as const,
       amenities: ['Parking', 'Washer', 'Dryer', 'Backyard'],
       hostId: hostOne.id,
+      status: 'ACTIVE' as const,
     },
     {
       title: 'Musanze Mountain Cabin',
@@ -147,6 +149,7 @@ async function main() {
       type: 'CABIN' as const,
       amenities: ['Fireplace', 'Hot tub', 'Mountain view', 'Kitchen'],
       hostId: hostTwo.id,
+      status: 'PENDING' as const,
     },
     {
       title: 'Rubavu Hills Villa',
@@ -157,6 +160,7 @@ async function main() {
       type: 'VILLA' as const,
       amenities: ['Pool', 'Ocean view', 'Private patio', 'Parking'],
       hostId: hostTwo.id,
+      status: 'ACTIVE' as const,
     },
     {
       title: 'Huye Heritage Suite',
@@ -167,6 +171,7 @@ async function main() {
       type: 'APARTMENT' as const,
       amenities: ['WiFi', 'Washer', 'Dedicated workspace', 'Balcony'],
       hostId: hostOne.id,
+      status: 'REJECTED' as const,
     },
     {
       title: 'Nyamata Orchard House',
@@ -177,6 +182,7 @@ async function main() {
       type: 'HOUSE' as const,
       amenities: ['Garden', 'Fire pit', 'Free parking', 'Kitchen'],
       hostId: hostTwo.id,
+      status: 'ACTIVE' as const,
     },
     {
       title: 'Kibuye Lake Bungalow',
@@ -187,6 +193,7 @@ async function main() {
       type: 'HOUSE' as const,
       amenities: ['Beach access', 'Outdoor shower', 'Deck', 'Parking'],
       hostId: hostOne.id,
+      status: 'ACTIVE' as const,
     },
   ];
 

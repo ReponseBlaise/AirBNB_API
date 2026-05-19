@@ -36,6 +36,7 @@ model Listing {
   guest          Int
   location       String
   type           ListingType
+  status         ListingStatus @default(PENDING)
   amenities      String[]
   hostId         String
   host           User     @relation(fields: [hostId], references: [id], onDelete: Cascade)
@@ -137,4 +138,10 @@ enum PaymentStatus {
   CAPTURED
   REFUNDED
   FAILED
+}
+
+enum ListingStatus {
+  PENDING
+  ACTIVE
+  REJECTED
 }
