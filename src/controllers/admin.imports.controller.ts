@@ -6,8 +6,9 @@ import ExcelJS from 'exceljs';
 
 type ImportTarget = 'users' | 'listings' | 'bookings';
 
-const parseCsv = (buf: Buffer<ArrayBufferLike>) => {
-  const text = buf.toString('utf8').replace(/\r\n/g, '\n');
+const parseCsv = (buf: unknown) => {
+  const nodeBuf: Buffer = Buffer.isBuffer(buf) ? buf as Buffer : Buffer.from(buf as any);
+  const text = nodeBuf.toString('utf8').replace(/\r\n/g, '\n');
   const lines = text.split('\n').filter(Boolean);
   if (lines.length === 0) return { headers: [], rows: [] };
   const firstLine = lines[0];
@@ -22,9 +23,11 @@ const parseCsv = (buf: Buffer<ArrayBufferLike>) => {
   return { headers, rows };
 };
 
-const parseXlsx = async (buf: Buffer<ArrayBufferLike>) => {
+const parseXlsx = async (buf: unknown) => {
+  const nodeBuf = Buffer.isBuffer(buf) ? buf as Buffer : Buffer.from(buf as any);
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(Buffer.from(buf));
+  // cast to any to satisfy ExcelJS typings for Buffer variations
+  await workbook.xlsx.load(nodeBuf as any);
   const sheet = workbook.worksheets[0];
   if (!sheet) return { headers: [], rows: [] };
   const headerRow = sheet.getRow(1).values as Array<string>;
@@ -47,7 +50,6 @@ const FIELD_ALIASES: Record<ImportTarget, Record<string, string[]>> = {
     name: ['name', 'fullname', 'full name', 'fullName'],
     username: ['username', 'user', 'user_name'],
     phone: ['phone', 'phonenumber', 'telephone', 'tel'],
-    role: ['role'],
     password: ['password', 'pwd'],
   },
   listings: {
