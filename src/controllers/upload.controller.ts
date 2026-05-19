@@ -91,12 +91,29 @@ export async function uploadListingPhotos(req: AuthRequest, res: Response, next:
     const remaining = 5 - existingCount;
     const toUpload = files.slice(0, remaining);
 
-    await Promise.all(
-      toUpload.map(async (file) => {
-        const { url, publicId } = await uploadToCloudinary(file.buffer, 'airbnb/listings');
-        await prisma.listingPhoto.create({ data: { url, publicId, listingId: id } });
-      })
-    );
+    // First upload all files to Cloudinary/local storage, then create DB records
+    const uploadResults: { url: string; publicId: string }[] = [];
+    try {
+      for (const file of toUpload) {
+        const result = await uploadToCloudinary(file.buffer, 'airbnb/listings');
+        uploadResults.push(result);
+      }
+
+      // Create DB records in a transaction
+      await prisma.$transaction(
+        uploadResults.map((r) => prisma.listingPhoto.create({ data: { url: r.url, publicId: r.publicId, listingId: id } }))
+      );
+    } catch (err) {
+      // If any upload failed, attempt to clean up already-uploaded assets
+      for (const r of uploadResults) {
+        try {
+          await deleteFromCloudinary(r.publicId);
+        } catch (e) {
+          // ignore cleanup errors
+        }
+      }
+      return res.status(500).json({ error: 'Failed to upload listing photos' });
+    }
 
     const updated = await prisma.listing.findUnique({
       where: { id },

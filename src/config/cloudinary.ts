@@ -41,7 +41,8 @@ export function uploadToCloudinary(buffer: Buffer, folder: string): Promise<{ ur
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
     const filepath = path.join(uploadsDir, filename);
     await fs.promises.writeFile(filepath, buffer);
-    const port = process.env['PORT'] || '3002';
+    // Use the same PORT the app listens on (default 3000) so returned URLs are reachable
+    const port = process.env['PORT'] || '3000';
     const base = process.env['LOCAL_BASE_URL'] || `http://localhost:${port}`;
     return { url: `${base}/uploads/${filename}`, publicId: filename };
   })()
